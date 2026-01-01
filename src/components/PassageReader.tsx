@@ -1,20 +1,20 @@
 "use client";
 
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { motion } from "framer-motion";
 
-interface PassageData {
-    passage: {
-        id: string;
-        title: string;
-        content: string;
-    };
+interface Passage {
+    id: string;
+    title: string;
+    content: string;
 }
 
 interface PassageReaderProps {
-    passageData: PassageData;
+    passage: Passage;
+    onBack?: () => void;
 }
 
-export default function PassageReader({ passageData }: PassageReaderProps) {
+export default function PassageReader({ passage, onBack }: PassageReaderProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isAdvancing, setIsAdvancing] = useState(true);
     const [fadingOutIndex, setFadingOutIndex] = useState<number | null>(null);
@@ -22,9 +22,8 @@ export default function PassageReader({ passageData }: PassageReaderProps) {
     const scrollCooldown = useRef(false);
     const contentRef = useRef<HTMLDivElement>(null);
 
-    // Process passage content into individual sentences with paragraph metadata
     const sentences = (() => {
-        const content = passageData.passage.content;
+        const content = passage.content;
         const paragraphs = content.split(/\n\n+/);
         const result: { text: string; startsNewParagraph: boolean }[] = [];
 
@@ -41,7 +40,6 @@ export default function PassageReader({ passageData }: PassageReaderProps) {
         return result;
     })();
 
-    // Navigation handlers
     const advance = () => {
         if (scrollCooldown.current) return;
         scrollCooldown.current = true;
@@ -74,7 +72,6 @@ export default function PassageReader({ passageData }: PassageReaderProps) {
         }, totalDuration);
     };
 
-    // Calculate vertical position based on content height to handle centering and bottom anchoring
     useLayoutEffect(() => {
         if (contentRef.current) {
             const fadingElement = contentRef.current.querySelector('[data-fading="true"]');
@@ -96,7 +93,6 @@ export default function PassageReader({ passageData }: PassageReaderProps) {
         }
     }, [currentIndex, fadingOutIndex]);
 
-    // Global input event listeners
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "ArrowDown" || e.key === " ") {
@@ -196,8 +192,20 @@ export default function PassageReader({ passageData }: PassageReaderProps) {
             <h1
                 className="absolute left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-[4vh]"
             >
-                {passageData.passage.title}
+                {passage.title}
             </h1>
+
+            {/* Back Button */}
+            {onBack && (
+                <button
+                    onClick={onBack}
+                    className="fixed top-8 left-8 z-40 p-2 rounded-full bg-white/80 hover:bg-white backdrop-blur-sm transition-all duration-300 hover:scale-110 shadow-sm border border-black/5 cursor-pointer"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#1a1a1a]">
+                        <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+                    </svg>
+                </button>
+            )}
 
             {/* Top Fade Gradient */}
             <div
@@ -231,6 +239,27 @@ export default function PassageReader({ passageData }: PassageReaderProps) {
                         return renderSentence(sentence, i, colorClass);
                     })}
                 </p>
+            </div>
+
+            {/* Scroll Helper */}
+            <div
+                className={`fixed left-1/2 -translate-x-1/2 bottom-[15vh] transition-opacity duration-700 pointer-events-none ${currentIndex < 3 ? "opacity-60" : "opacity-0"}`}
+            >
+                <div className="flex flex-col items-center gap-2">
+                    <span className="text-[10px] tracking-[0.2em] uppercase text-[#999999ff] font-medium">Scroll To Keep Reading</span>
+                    <motion.div
+                        animate={{ y: [0, 6, 0] }}
+                        transition={{
+                            repeat: Infinity,
+                            duration: 2,
+                            ease: "easeInOut"
+                        }}
+                    >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#999999ff]">
+                            <path d="M12 5v14M19 12l-7 7-7-7" />
+                        </svg>
+                    </motion.div>
+                </div>
             </div>
 
             {/* Progress Indicator */}
