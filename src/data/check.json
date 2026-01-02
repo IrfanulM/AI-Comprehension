@@ -1,0 +1,22 @@
+{
+    "question1": {
+        "question": "How is this different from what we typically expect from a human ruler?",
+        "answer-rating": 4,
+        "explanation": "Good try, but you could've expanded on the level of authority bestowed upon human rulers as opposed to the Queen bee's lack of control over the hive."
+    },
+    "question2": {
+        "question": "Looking at the career path of a worker bee from birth to old age, how does the level of risk or danger change as they switch jobs?",
+        "answer-rating": 8,
+        "explanation": "Excellent analysis! You correctly identified that younger bees work safer jobs inside the hive while older bees take on the dangerous foraging roles. Consider also mentioning how this protects the colony's investment in training younger workers."
+    },
+    "question3": {
+        "question": "How does this method of sharing information make the colony more efficient than if every bee simply searched for food on their own?",
+        "answer-rating": 6,
+        "explanation": "You touched on the key idea of communication saving time, but could have elaborated on the waggle dance specifically and how it conveys both direction and distance to food sources."
+    },
+    "question4": {
+        "question": "Correct the summary errors",
+        "answer-rating": 7,
+        "explanation": "Good effort! You correctly identified two of the three errors - the Queen's lack of decision-making power and how foragers share information. However, you missed the error about winter survival and how the colony actually sacrifices some bees rather than protecting everyone."
+    }
+}

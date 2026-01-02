@@ -13,5 +13,14 @@
         "type": "while-reading",
         "sentence-number": 16,
         "question": "How does this method of sharing information make the colony more efficient than if every bee simply searched for food on their own?"
+    },
+    "question4": {
+        "type": "post-reading",
+        "summary": "The beehive functions like a strict military dictatorship, where the Queen’s constant decision-making ensures the chaotic workers stay organized. To maximize efficiency, foragers keep food discoveries secret so they don't waste time communicating with others. However, despite this ruthless efficiency, the colony is deeply sentimental, ensuring that every bee is protected and fed throughout the harsh winter.",
+        "errors": {
+            "error1": "the Queen’s constant decision-making ensures the chaotic workers stay organized.",
+            "error2": "to maximize efficiency, foragers keep food discoveries secret so they don't waste time communicating with others.",
+            "error3": "despite this ruthless efficiency, the colony is deeply sentimental, ensuring that every bee is protected and fed throughout the harsh winter."
+        }
     }
 }

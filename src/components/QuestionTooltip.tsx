@@ -93,7 +93,7 @@ export default function QuestionTooltip({
                 <button
                     onClick={handleSubmit}
                     disabled={!answer.trim()}
-                    className="mt-3 w-full py-2 px-4 bg-[#1a1a1a] text-white text-sm font-medium rounded-lg transition-all duration-200 hover:bg-[#333] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    className="mt-3 w-full py-2 px-4 bg-[#1a1a1a] text-white text-sm font-medium rounded-lg hover:scale-105 active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
                 >
                     Submit
                 </button>

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react
 import { motion, AnimatePresence } from "framer-motion";
 import questionsData from "@/data/questions.json";
 import QuestionTooltip from "@/components/QuestionTooltip";
+import ProgressIndicator from "@/components/ProgressIndicator";
 
 interface Passage {
     id: string;
@@ -13,15 +14,22 @@ interface Passage {
 
 interface PassageReaderProps {
     passage: Passage;
-    onBack?: () => void;
+    onBack?: (savedAnswers: Record<string, string>) => void;
 }
 
-interface Question {
-    type: string;
+interface WhileReadingQuestion {
+    type: "while-reading";
     "sentence-number": number;
     question: string;
 }
 
+interface PostReadingQuestion {
+    type: "post-reading";
+    summary: string;
+    errors: Record<string, string>;
+}
+
+type Question = WhileReadingQuestion | PostReadingQuestion;
 type QuestionsMap = Record<string, Question>;
 
 export default function PassageReader({ passage, onBack }: PassageReaderProps) {
@@ -29,7 +37,7 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
     const [isAdvancing, setIsAdvancing] = useState(true);
     const [fadingOutIndex, setFadingOutIndex] = useState<number | null>(null);
     const [topPosition, setTopPosition] = useState<number | null>(null);
-    const [activeQuestion, setActiveQuestion] = useState<{ key: string; question: Question; side: "left" | "right" } | null>(null);
+    const [activeQuestion, setActiveQuestion] = useState<{ key: string; question: WhileReadingQuestion; side: "left" | "right" } | null>(null);
     const [savedAnswers, setSavedAnswers] = useState<Record<string, string>>({});
     const [tooltipY, setTooltipY] = useState(0);
     const scrollCooldown = useRef(false);
@@ -67,7 +75,8 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
         const sentenceNumber = sentenceIndex + 1;
         let questionIndex = 0;
         for (const [key, q] of Object.entries(questions)) {
-            if (q["sentence-number"] === sentenceNumber && !savedAnswers[key]) {
+            // Only check while-reading questions
+            if (q.type === "while-reading" && q["sentence-number"] === sentenceNumber && !savedAnswers[key]) {
                 const side = questionIndex % 2 === 0 ? "right" : "left";
                 setActiveQuestion({ key, question: q, side });
                 requestAnimationFrame(() => {
@@ -77,7 +86,7 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
                 });
                 return true;
             }
-            questionIndex++;
+            if (q.type === "while-reading") questionIndex++;
         }
         return false;
     };
@@ -252,16 +261,14 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
     return (
         <div className="relative h-screen w-screen overflow-hidden bg-white">
             {/* Title */}
-            <h1
-                className="absolute left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-[4vh]"
-            >
+            <h1 className="absolute left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-[4vh]">
                 {passage.title}
             </h1>
 
             {/* Back Button */}
             {onBack && (
                 <button
-                    onClick={onBack}
+                    onClick={() => onBack(savedAnswers)}
                     className="fixed top-8 left-8 z-40 p-2 rounded-full bg-white/80 hover:bg-white backdrop-blur-sm transition-all duration-300 hover:scale-110 shadow-sm border border-black/5 cursor-pointer"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#1a1a1a]">
@@ -278,7 +285,7 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
             {/* Content */}
             <div
                 ref={contentRef}
-                className="absolute left-1/2 z-10 -translate-x-1/2 transition-[top] duration-400 ease-out font-medium w-[clamp(300px,55vw,1000px)] text-[clamp(20px,2.2vw,34px)] leading-[1.7]"
+                className="absolute left-1/2 z-10 -translate-x-1/2 transition-[top] duration-400 ease-out font-serif font-medium w-[clamp(300px,55vw,1000px)] text-[clamp(20px,2.2vw,34px)] leading-[1.7]"
                 style={{
                     top: topPosition !== null ? `${topPosition}px` : "50%",
                 }}
@@ -304,7 +311,7 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
                 </p>
             </div>
 
-            {/* Question Tooltip via Portal */}
+            {/* Question Tooltip */}
             <AnimatePresence>
                 {activeQuestion && (
                     <QuestionTooltip
@@ -338,25 +345,12 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
             </div>
 
             {/* Progress Indicator */}
-            <div
-                className="fixed left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 bottom-[5vh]"
-            >
-                <p
-                    className="tracking-wide text-[#aaa] text-[clamp(12px,1vw,16px)]"
-                >
-                    {currentIndex + 1} / {sentences.length}
-                </p>
-                <div
-                    className="h-1 overflow-hidden rounded-full bg-[#e8e8e8] w-[clamp(120px,15vw,200px)]"
-                >
-                    <div
-                        className="h-full rounded-full bg-[#1a1a1a] transition-all duration-500 ease-out"
-                        style={{
-                            width: `${((currentIndex + 1) / sentences.length) * 100}%`,
-                        }}
-                    />
-                </div>
-            </div>
+            <ProgressIndicator
+                currentIndex={currentIndex}
+                totalSentences={sentences.length}
+                isFinished={currentIndex === sentences.length - 1 && !activeQuestion}
+                onFinish={() => onBack?.(savedAnswers)}
+            />
         </div>
     );
 }
