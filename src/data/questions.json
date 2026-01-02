@@ -1,0 +1,17 @@
+{
+    "question1": {
+        "type": "while-reading",
+        "sentence-number": 5,
+        "question": "How is this different from what we typically expect from a human ruler?"
+    },
+    "question2": {
+        "type": "while-reading",
+        "sentence-number": 10,
+        "question": "Looking at the career path of a worker bee from birth to old age, how does the level of risk or danger change as they switch jobs?"
+    },
+    "question3": {
+        "type": "while-reading",
+        "sentence-number": 16,
+        "question": "How does this method of sharing information make the colony more efficient than if every bee simply searched for food on their own?"
+    }
+}

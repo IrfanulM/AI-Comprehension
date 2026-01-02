@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useLayoutEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import questionsData from "@/data/questions.json";
+import QuestionTooltip from "@/components/QuestionTooltip";
 
 interface Passage {
     id: string;
@@ -14,13 +16,27 @@ interface PassageReaderProps {
     onBack?: () => void;
 }
 
+interface Question {
+    type: string;
+    "sentence-number": number;
+    question: string;
+}
+
+type QuestionsMap = Record<string, Question>;
+
 export default function PassageReader({ passage, onBack }: PassageReaderProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isAdvancing, setIsAdvancing] = useState(true);
     const [fadingOutIndex, setFadingOutIndex] = useState<number | null>(null);
     const [topPosition, setTopPosition] = useState<number | null>(null);
+    const [activeQuestion, setActiveQuestion] = useState<{ key: string; question: Question; side: "left" | "right" } | null>(null);
+    const [savedAnswers, setSavedAnswers] = useState<Record<string, string>>({});
+    const [tooltipY, setTooltipY] = useState(0);
     const scrollCooldown = useRef(false);
     const contentRef = useRef<HTMLDivElement>(null);
+    const currentSentenceRef = useRef<HTMLSpanElement>(null);
+
+    const questions = questionsData as QuestionsMap;
 
     const sentences = (() => {
         const content = passage.content;
@@ -40,19 +56,53 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
         return result;
     })();
 
+    const updateTooltipPosition = useCallback(() => {
+        if (currentSentenceRef.current) {
+            const rect = currentSentenceRef.current.getBoundingClientRect();
+            setTooltipY(rect.top + rect.height / 2);
+        }
+    }, []);
+
+    const checkForQuestion = (sentenceIndex: number) => {
+        const sentenceNumber = sentenceIndex + 1;
+        let questionIndex = 0;
+        for (const [key, q] of Object.entries(questions)) {
+            if (q["sentence-number"] === sentenceNumber && !savedAnswers[key]) {
+                const side = questionIndex % 2 === 0 ? "right" : "left";
+                setActiveQuestion({ key, question: q, side });
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        updateTooltipPosition();
+                    });
+                });
+                return true;
+            }
+            questionIndex++;
+        }
+        return false;
+    };
+
+    const handleSubmitAnswer = (answer: string) => {
+        if (!activeQuestion) return;
+        setSavedAnswers((prev) => ({ ...prev, [activeQuestion.key]: answer }));
+        setActiveQuestion(null);
+    };
+
     const advance = () => {
-        if (scrollCooldown.current) return;
+        if (scrollCooldown.current || activeQuestion) return;
         scrollCooldown.current = true;
         setIsAdvancing(true);
         setFadingOutIndex(null);
-        setCurrentIndex((prev) => Math.min(prev + 1, sentences.length - 1));
+        const nextIndex = Math.min(currentIndex + 1, sentences.length - 1);
+        setCurrentIndex(nextIndex);
         setTimeout(() => {
             scrollCooldown.current = false;
+            checkForQuestion(nextIndex);
         }, 300);
     };
 
     const retreat = () => {
-        if (scrollCooldown.current || currentIndex === 0) return;
+        if (scrollCooldown.current || currentIndex === 0 || activeQuestion) return;
         scrollCooldown.current = true;
         setIsAdvancing(false);
 
@@ -94,7 +144,14 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
     }, [currentIndex, fadingOutIndex]);
 
     useEffect(() => {
+        if (activeQuestion) {
+            updateTooltipPosition();
+        }
+    }, [activeQuestion, topPosition, updateTooltipPosition]);
+
+    useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (activeQuestion) return;
             if (e.key === "ArrowDown" || e.key === " ") {
                 e.preventDefault();
                 advance();
@@ -105,6 +162,7 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
         };
 
         const handleWheel = (e: WheelEvent) => {
+            if (activeQuestion) return;
             e.preventDefault();
             if (e.deltaY > 0) {
                 advance();
@@ -139,9 +197,14 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
         const totalChars = sentence.text.length;
         const isHide = animationClass === "animate-letter-hide";
         const isReveal = animationClass === "animate-letter-reveal";
+        const isCurrentSentence = index === currentIndex;
 
         return (
-            <span key={index} data-fading={isHide ? "true" : "false"}>
+            <span
+                key={index}
+                data-fading={isHide ? "true" : "false"}
+                ref={isCurrentSentence ? currentSentenceRef : undefined}
+            >
                 {sentence.startsNewParagraph && <span className="block h-6" />}
                 <span
                     className={`${colorClass} ${!animationClass ? "transition-colors duration-500 ease-out" : ""}`}
@@ -241,9 +304,21 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
                 </p>
             </div>
 
+            {/* Question Tooltip via Portal */}
+            <AnimatePresence>
+                {activeQuestion && (
+                    <QuestionTooltip
+                        question={activeQuestion.question.question}
+                        side={activeQuestion.side}
+                        anchorY={tooltipY}
+                        onSubmit={handleSubmitAnswer}
+                    />
+                )}
+            </AnimatePresence>
+
             {/* Scroll Helper */}
             <div
-                className={`fixed left-1/2 -translate-x-1/2 bottom-[15vh] transition-opacity duration-700 pointer-events-none ${currentIndex < 3 ? "opacity-60" : "opacity-0"}`}
+                className={`fixed left-1/2 -translate-x-1/2 bottom-[15vh] transition-opacity duration-700 pointer-events-none ${currentIndex < 3 && !activeQuestion ? "opacity-60" : "opacity-0"}`}
             >
                 <div className="flex flex-col items-center gap-2">
                     <span className="text-[10px] tracking-[0.2em] uppercase text-[#999999ff] font-medium">Scroll To Keep Reading</span>
