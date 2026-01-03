@@ -71,7 +71,7 @@ export default function Results({
         }));
 
     // Get post-reading question
-    const postReadingEntry = Object.entries(questions).find(([, q]) => q.type === "post-reading");
+    const postReadingEntry = Object.entries(questions).find(([, q]) => q.type === "post-reading" || q.summary);
     const postReadingKey = postReadingEntry?.[0];
 
     // Get rating color based on score

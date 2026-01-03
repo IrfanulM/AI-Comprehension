@@ -45,7 +45,7 @@ export default function Home() {
 
     // Get post-reading question from loaded questions
     const postReadingQuestion = questions
-        ? (Object.values(questions).find((q) => q.type === "post-reading") as PostReadingQuestion | undefined)
+        ? (Object.values(questions).find((q) => q.type === "post-reading" || q.summary) as PostReadingQuestion | undefined)
         : undefined;
 
     // Check localStorage for cached questions
@@ -68,9 +68,33 @@ export default function Home() {
         localStorage.setItem(CACHE_PREFIX + passageId, JSON.stringify(questionsData));
     };
 
+    // Check localStorage for cached answers
+    const getCachedAnswers = (passageId: string): Record<string, string> => {
+        if (typeof window === "undefined") return {};
+        const cached = localStorage.getItem(`answers_${passageId}`);
+        if (cached) {
+            try {
+                return JSON.parse(cached);
+            } catch {
+                return {};
+            }
+        }
+        return {};
+    };
+
+    const handleSaveAnswer = (key: string, answer: string) => {
+        setSavedAnswers(prev => {
+            const newAnswers = { ...prev, [key]: answer };
+            if (selectedPassage) {
+                localStorage.setItem(`answers_${selectedPassage.id}`, JSON.stringify(newAnswers));
+            }
+            return newAnswers;
+        });
+    };
+
     const handleSelectPassage = async (passage: any) => {
         setSelectedPassage(passage);
-        setSavedAnswers({});
+        setSavedAnswers(getCachedAnswers(passage.id));
         setCorrectedSummary("");
         setError(null);
         setChecks(null);
@@ -113,7 +137,14 @@ export default function Home() {
 
     const handleFinishReading = (answers: Record<string, string>) => {
         setSavedAnswers(answers);
-        setAppState("post-reading");
+        if (selectedPassage) {
+            localStorage.setItem(`answers_${selectedPassage.id}`, JSON.stringify(answers));
+        }
+        if (postReadingQuestion) {
+            setAppState("post-reading");
+        } else {
+            handleGradeAnswers(answers, "");
+        }
     };
 
     const handleSubmitCorrections = (summary: string) => {
@@ -181,8 +212,10 @@ export default function Home() {
             <PassageReader
                 passage={selectedPassage}
                 questions={questions}
+                initialAnswers={savedAnswers}
                 onBack={handleBackToMenu}
                 onFinish={handleFinishReading}
+                onSaveAnswer={handleSaveAnswer}
             />
         );
     }

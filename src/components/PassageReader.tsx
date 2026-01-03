@@ -29,17 +29,20 @@ type QuestionsMap = Record<string, Question>;
 interface PassageReaderProps {
     passage: Passage;
     questions: QuestionsMap;
+    initialAnswers?: Record<string, string>;
     onBack?: () => void;
     onFinish?: (savedAnswers: Record<string, string>) => void;
+    onSaveAnswer?: (key: string, answer: string) => void;
 }
 
-export default function PassageReader({ passage, questions, onBack, onFinish }: PassageReaderProps) {
+export default function PassageReader({ passage, questions, initialAnswers, onBack, onFinish, onSaveAnswer }: PassageReaderProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isAdvancing, setIsAdvancing] = useState(true);
     const [fadingOutIndex, setFadingOutIndex] = useState<number | null>(null);
     const [topPosition, setTopPosition] = useState<number | null>(null);
     const [activeQuestion, setActiveQuestion] = useState<{ key: string; question: WhileReadingQuestion; side: "left" | "right" } | null>(null);
-    const [savedAnswers, setSavedAnswers] = useState<Record<string, string>>({});
+    const [savedAnswers, setSavedAnswers] = useState<Record<string, string>>(initialAnswers || {});
+    const [answeredInSession, setAnsweredInSession] = useState<Set<string>>(new Set());
     const [draftAnswers, setDraftAnswers] = useState<Record<string, string>>({});
     const [tooltipY, setTooltipY] = useState(0);
     const scrollCooldown = useRef(false);
@@ -76,7 +79,7 @@ export default function PassageReader({ passage, questions, onBack, onFinish }: 
         let questionIndex = 0;
         for (const [key, q] of Object.entries(questions)) {
             // Only check while-reading questions
-            if (q.type === "while-reading" && q["sentence-number"] === sentenceNumber && !savedAnswers[key]) {
+            if (q.type === "while-reading" && q["sentence-number"] === sentenceNumber && !answeredInSession.has(key)) {
                 const side = questionIndex % 2 === 0 ? "right" : "left";
                 setActiveQuestion({ key, question: q, side });
                 requestAnimationFrame(() => {
@@ -93,7 +96,10 @@ export default function PassageReader({ passage, questions, onBack, onFinish }: 
 
     const handleSubmitAnswer = (answer: string) => {
         if (!activeQuestion) return;
-        setSavedAnswers((prev) => ({ ...prev, [activeQuestion.key]: answer }));
+        const key = activeQuestion.key;
+        setSavedAnswers((prev) => ({ ...prev, [key]: answer }));
+        setAnsweredInSession((prev) => new Set(prev).add(key));
+        onSaveAnswer?.(key, answer);
         setActiveQuestion(null);
     };
 
@@ -324,7 +330,7 @@ export default function PassageReader({ passage, questions, onBack, onFinish }: 
                         question={activeQuestion.question.question}
                         side={activeQuestion.side}
                         anchorY={tooltipY}
-                        initialAnswer={draftAnswers[activeQuestion.key] || ""}
+                        initialAnswer={draftAnswers[activeQuestion.key] || savedAnswers[activeQuestion.key] || ""}
                         onSubmit={handleSubmitAnswer}
                         onDraftChange={(draft) => setDraftAnswers(prev => ({ ...prev, [activeQuestion.key]: draft }))}
                     />

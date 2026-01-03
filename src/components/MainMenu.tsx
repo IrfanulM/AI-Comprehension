@@ -18,6 +18,7 @@ export default function MainMenu({ passages, onSelect }: MainMenuProps) {
     const handleClearCache = (passageId: string, e: React.MouseEvent) => {
         e.stopPropagation();
         localStorage.removeItem(`questions_${passageId}`);
+        localStorage.removeItem(`answers_${passageId}`);
         setClearedPassages(prev => new Set(prev).add(passageId));
     };
 
