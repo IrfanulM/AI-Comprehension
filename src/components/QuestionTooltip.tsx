@@ -59,9 +59,15 @@ export default function QuestionTooltip({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className={`fixed z-50 ${isMobile
                 ? "left-1/2 -translate-x-1/2 top-[12vh]"
-                : `${side === "right" ? "right-[3vw]" : "left-[3vw]"}`
+                : ""
                 }`}
-            style={isMobile ? undefined : { top: anchorY }}
+            style={isMobile ? undefined : {
+                top: anchorY,
+                ...(side === "right"
+                    ? { left: "calc(50% + min(27.5vw, 500px) + 24px)" }
+                    : { right: "calc(50% + min(27.5vw, 500px) + 24px)" }
+                )
+            }}
         >
             <div className="relative bg-white rounded-2xl shadow-xl border border-black/10 p-5 md:p-6 w-[calc(100vw-32px)] max-w-[320px]">
                 {isMobile && (

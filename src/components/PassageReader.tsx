@@ -14,7 +14,8 @@ interface Passage {
 
 interface PassageReaderProps {
     passage: Passage;
-    onBack?: (savedAnswers: Record<string, string>) => void;
+    onBack?: () => void;
+    onFinish?: (savedAnswers: Record<string, string>) => void;
 }
 
 interface WhileReadingQuestion {
@@ -32,7 +33,7 @@ interface PostReadingQuestion {
 type Question = WhileReadingQuestion | PostReadingQuestion;
 type QuestionsMap = Record<string, Question>;
 
-export default function PassageReader({ passage, onBack }: PassageReaderProps) {
+export default function PassageReader({ passage, onBack, onFinish }: PassageReaderProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isAdvancing, setIsAdvancing] = useState(true);
     const [fadingOutIndex, setFadingOutIndex] = useState<number | null>(null);
@@ -268,7 +269,7 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
             {/* Back Button */}
             {onBack && (
                 <button
-                    onClick={() => onBack(savedAnswers)}
+                    onClick={() => onBack()}
                     className="fixed top-8 left-8 z-40 p-2 rounded-full bg-white/80 hover:bg-white backdrop-blur-sm transition-all duration-300 hover:scale-110 shadow-sm border border-black/5 cursor-pointer"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#1a1a1a]">
@@ -349,7 +350,7 @@ export default function PassageReader({ passage, onBack }: PassageReaderProps) {
                 currentIndex={currentIndex}
                 totalSentences={sentences.length}
                 isFinished={currentIndex === sentences.length - 1 && !activeQuestion}
-                onFinish={() => onBack?.(savedAnswers)}
+                onFinish={() => onFinish?.(savedAnswers)}
             />
         </div>
     );

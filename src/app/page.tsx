@@ -60,7 +60,8 @@ export default function Home() {
         return (
             <PassageReader
                 passage={selectedPassage}
-                onBack={handleFinishReading}
+                onBack={handleBackToMenu}
+                onFinish={handleFinishReading}
             />
         );
     }
@@ -71,7 +72,7 @@ export default function Home() {
                 passageTitle={selectedPassage.title}
                 summary={postReadingQuestion.summary}
                 onSubmit={handleSubmitCorrections}
-                onBack={handleBackToMenu}
+                onBack={() => setAppState("reading")}
             />
         );
     }
