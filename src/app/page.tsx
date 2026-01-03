@@ -82,6 +82,26 @@ export default function Home() {
         return {};
     };
 
+    // Check localStorage for cached results
+    const getCachedResults = (passageId: string): { checks: ChecksData; answers: Record<string, string>; summary: string } | null => {
+        if (typeof window === "undefined") return null;
+        const cached = localStorage.getItem(`results_${passageId}`);
+        if (cached) {
+            try {
+                return JSON.parse(cached);
+            } catch {
+                return null;
+            }
+        }
+        return null;
+    };
+
+    // Save results to localStorage
+    const cacheResults = (passageId: string, checks: ChecksData, answers: Record<string, string>, summary: string) => {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(`results_${passageId}`, JSON.stringify({ checks, answers, summary }));
+    };
+
     const handleSaveAnswer = (key: string, answer: string) => {
         setSavedAnswers(prev => {
             const newAnswers = { ...prev, [key]: answer };
@@ -174,6 +194,10 @@ export default function Home() {
 
             const data = await response.json();
             setChecks(data.results);
+            // Cache results
+            if (selectedPassage) {
+                cacheResults(selectedPassage.id, data.results, answers, summary);
+            }
             setAppState("results");
         } catch (err) {
             console.error("Error grading answers:", err);
@@ -190,6 +214,19 @@ export default function Home() {
         setSavedAnswers({});
         setCorrectedSummary("");
         setError(null);
+    };
+
+    const handleViewResults = (passage: any) => {
+        const cachedResults = getCachedResults(passage.id);
+        const cachedQuestions = getCachedQuestions(passage.id);
+        if (cachedResults && cachedQuestions) {
+            setSelectedPassage(passage);
+            setQuestions(cachedQuestions);
+            setChecks(cachedResults.checks);
+            setSavedAnswers(cachedResults.answers);
+            setCorrectedSummary(cachedResults.summary);
+            setAppState("results");
+        }
     };
 
     // Loading states
@@ -252,6 +289,7 @@ export default function Home() {
         <MainMenu
             passages={passages}
             onSelect={handleSelectPassage}
+            onViewResults={handleViewResults}
         />
     );
 }

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Passage {
     id: string;
@@ -10,16 +10,39 @@ interface Passage {
 interface MainMenuProps {
     passages: Passage[];
     onSelect: (passage: Passage) => void;
+    onViewResults?: (passage: Passage) => void;
 }
 
-export default function MainMenu({ passages, onSelect }: MainMenuProps) {
+export default function MainMenu({ passages, onSelect, onViewResults }: MainMenuProps) {
     const [clearedPassages, setClearedPassages] = useState<Set<string>>(new Set());
+    const [cacheState, setCacheState] = useState<Record<string, { hasQuestions: boolean; hasResults: boolean }>>({});
+    const [mounted, setMounted] = useState(false);
+
+    // Check cache state after mount
+    useEffect(() => {
+        const state: Record<string, { hasQuestions: boolean; hasResults: boolean }> = {};
+        passages.forEach(p => {
+            state[p.id] = {
+                hasQuestions: localStorage.getItem(`questions_${p.id}`) !== null,
+                hasResults: localStorage.getItem(`results_${p.id}`) !== null,
+            };
+        });
+        setCacheState(state);
+        setMounted(true);
+    }, [passages]);
 
     const handleClearCache = (passageId: string, e: React.MouseEvent) => {
         e.stopPropagation();
         localStorage.removeItem(`questions_${passageId}`);
         localStorage.removeItem(`answers_${passageId}`);
+        localStorage.removeItem(`results_${passageId}`);
         setClearedPassages(prev => new Set(prev).add(passageId));
+        setCacheState(prev => ({ ...prev, [passageId]: { hasQuestions: false, hasResults: false } }));
+    };
+
+    const handleViewResults = (passage: Passage, e: React.MouseEvent) => {
+        e.stopPropagation();
+        onViewResults?.(passage);
     };
 
     return (
@@ -50,15 +73,23 @@ export default function MainMenu({ passages, onSelect }: MainMenuProps) {
                         >
                             <div className="absolute top-0 left-0 w-1 h-full bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
 
-                            <div
-                                onClick={(e) => handleClearCache(passage.id, e)}
-                                className={`absolute top-4 right-4 text-xs transition-colors ${
-                                    clearedPassages.has(passage.id)
-                                        ? "text-[#888] cursor-default"
-                                        : "text-[#888] hover:text-red-500 cursor-pointer"
-                                }`}
-                            >
-                                {clearedPassages.has(passage.id) ? "✔ Question Cache Cleared" : "Clear Question Cache"}
+                            <div className="absolute top-4 right-4 flex flex-col items-end gap-1">
+                                {mounted && cacheState[passage.id]?.hasQuestions && !clearedPassages.has(passage.id) && (
+                                    <div
+                                        onClick={(e) => handleClearCache(passage.id, e)}
+                                        className="text-xs transition-colors text-[#888] hover:text-red-500 cursor-pointer"
+                                    >
+                                        Clear Cache
+                                    </div>
+                                )}
+                                {mounted && cacheState[passage.id]?.hasResults && !clearedPassages.has(passage.id) && (
+                                    <div
+                                        onClick={(e) => handleViewResults(passage, e)}
+                                        className="text-xs text-[#888] hover:text-blue-500 cursor-pointer transition-colors"
+                                    >
+                                        View Results
+                                    </div>
+                                )}
                             </div>
 
                             <div className="mb-4 inline-flex items-center justify-center w-12 h-12 rounded-full bg-black/5 group-hover:bg-[#1a1a1a] transition-all duration-300">
