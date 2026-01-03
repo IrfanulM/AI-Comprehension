@@ -8,16 +8,20 @@ interface QuestionTooltipProps {
     question: string;
     side: "left" | "right";
     anchorY: number;
+    initialAnswer?: string;
     onSubmit: (answer: string) => void;
+    onDraftChange?: (answer: string) => void;
 }
 
 export default function QuestionTooltip({
     question,
     side,
     anchorY,
+    initialAnswer = "",
     onSubmit,
+    onDraftChange,
 }: QuestionTooltipProps) {
-    const [answer, setAnswer] = useState("");
+    const [answer, setAnswer] = useState(initialAnswer);
     const [mounted, setMounted] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -38,6 +42,11 @@ export default function QuestionTooltip({
             inputRef.current?.focus();
         }
     }, [mounted]);
+
+    const handleAnswerChange = (value: string) => {
+        setAnswer(value);
+        onDraftChange?.(value);
+    };
 
     const handleSubmit = () => {
         if (!answer.trim()) return;
@@ -90,7 +99,7 @@ export default function QuestionTooltip({
                 <textarea
                     ref={inputRef}
                     value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
+                    onChange={(e) => handleAnswerChange(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Type your answer..."
                     className="w-full h-24 px-3 py-2 text-sm border border-black/10 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-black/10 placeholder:text-[#aaa]"

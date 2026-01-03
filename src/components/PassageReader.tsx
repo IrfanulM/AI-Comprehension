@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import questionsData from "@/data/questions.json";
 import QuestionTooltip from "@/components/QuestionTooltip";
 import ProgressIndicator from "@/components/ProgressIndicator";
 
@@ -10,12 +9,6 @@ interface Passage {
     id: string;
     title: string;
     content: string;
-}
-
-interface PassageReaderProps {
-    passage: Passage;
-    onBack?: () => void;
-    onFinish?: (savedAnswers: Record<string, string>) => void;
 }
 
 interface WhileReadingQuestion {
@@ -33,19 +26,25 @@ interface PostReadingQuestion {
 type Question = WhileReadingQuestion | PostReadingQuestion;
 type QuestionsMap = Record<string, Question>;
 
-export default function PassageReader({ passage, onBack, onFinish }: PassageReaderProps) {
+interface PassageReaderProps {
+    passage: Passage;
+    questions: QuestionsMap;
+    onBack?: () => void;
+    onFinish?: (savedAnswers: Record<string, string>) => void;
+}
+
+export default function PassageReader({ passage, questions, onBack, onFinish }: PassageReaderProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isAdvancing, setIsAdvancing] = useState(true);
     const [fadingOutIndex, setFadingOutIndex] = useState<number | null>(null);
     const [topPosition, setTopPosition] = useState<number | null>(null);
     const [activeQuestion, setActiveQuestion] = useState<{ key: string; question: WhileReadingQuestion; side: "left" | "right" } | null>(null);
     const [savedAnswers, setSavedAnswers] = useState<Record<string, string>>({});
+    const [draftAnswers, setDraftAnswers] = useState<Record<string, string>>({});
     const [tooltipY, setTooltipY] = useState(0);
     const scrollCooldown = useRef(false);
     const contentRef = useRef<HTMLDivElement>(null);
     const currentSentenceRef = useRef<HTMLSpanElement>(null);
-
-    const questions = questionsData as QuestionsMap;
 
     const sentences = (() => {
         const content = passage.content;
@@ -112,7 +111,13 @@ export default function PassageReader({ passage, onBack, onFinish }: PassageRead
     };
 
     const retreat = () => {
-        if (scrollCooldown.current || currentIndex === 0 || activeQuestion) return;
+        if (scrollCooldown.current || currentIndex === 0) return;
+
+        // If question is active, dismiss it when scrolling back
+        if (activeQuestion) {
+            setActiveQuestion(null);
+        }
+
         scrollCooldown.current = true;
         setIsAdvancing(false);
 
@@ -161,23 +166,23 @@ export default function PassageReader({ passage, onBack, onFinish }: PassageRead
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (activeQuestion) return;
             if (e.key === "ArrowDown" || e.key === " ") {
+                if (activeQuestion) return; // Block forward when question active
                 e.preventDefault();
                 advance();
             } else if (e.key === "ArrowUp") {
                 e.preventDefault();
-                retreat();
+                retreat(); // Always allow backward
             }
         };
 
         const handleWheel = (e: WheelEvent) => {
-            if (activeQuestion) return;
             e.preventDefault();
             if (e.deltaY > 0) {
+                if (activeQuestion) return; // Block forward when question active
                 advance();
             } else if (e.deltaY < 0) {
-                retreat();
+                retreat(); // Always allow backward
             }
         };
 
@@ -319,7 +324,9 @@ export default function PassageReader({ passage, onBack, onFinish }: PassageRead
                         question={activeQuestion.question.question}
                         side={activeQuestion.side}
                         anchorY={tooltipY}
+                        initialAnswer={draftAnswers[activeQuestion.key] || ""}
                         onSubmit={handleSubmitAnswer}
+                        onDraftChange={(draft) => setDraftAnswers(prev => ({ ...prev, [activeQuestion.key]: draft }))}
                     />
                 )}
             </AnimatePresence>

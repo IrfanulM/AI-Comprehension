@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useState } from "react";
 
 interface Passage {
     id: string;
@@ -12,6 +13,14 @@ interface MainMenuProps {
 }
 
 export default function MainMenu({ passages, onSelect }: MainMenuProps) {
+    const [clearedPassages, setClearedPassages] = useState<Set<string>>(new Set());
+
+    const handleClearCache = (passageId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        localStorage.removeItem(`questions_${passageId}`);
+        setClearedPassages(prev => new Set(prev).add(passageId));
+    };
+
     return (
         <div className="min-h-screen w-full bg-[#f8f9fa] flex flex-col items-center justify-center p-8">
             <motion.div
@@ -39,6 +48,17 @@ export default function MainMenu({ passages, onSelect }: MainMenuProps) {
                             className="group relative bg-white rounded-2xl p-8 text-left shadow-sm hover:shadow-xl transition-[box-shadow,border-color] duration-300 border border-black/5 hover:border-black/10 overflow-hidden cursor-pointer w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
                         >
                             <div className="absolute top-0 left-0 w-1 h-full bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
+
+                            <div
+                                onClick={(e) => handleClearCache(passage.id, e)}
+                                className={`absolute top-4 right-4 text-xs transition-colors ${
+                                    clearedPassages.has(passage.id)
+                                        ? "text-[#888] cursor-default"
+                                        : "text-[#888] hover:text-red-500 cursor-pointer"
+                                }`}
+                            >
+                                {clearedPassages.has(passage.id) ? "✔ Question Cache Cleared" : "Clear Question Cache"}
+                            </div>
 
                             <div className="mb-4 inline-flex items-center justify-center w-12 h-12 rounded-full bg-black/5 group-hover:bg-[#1a1a1a] transition-all duration-300">
                                 <span className="font-serif font-bold text-lg text-[#1a1a1a] group-hover:text-white transition-colors">

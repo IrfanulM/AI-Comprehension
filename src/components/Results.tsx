@@ -2,16 +2,6 @@
 
 import { motion } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
-import checkData from "@/data/check.json";
-import questionsData from "@/data/questions.json";
-
-interface ResultsProps {
-    passageTitle: string;
-    passageContent: string;
-    savedAnswers: Record<string, string>;
-    correctedSummary: string;
-    onBack: () => void;
-}
 
 interface CheckItem {
     question: string;
@@ -28,15 +18,25 @@ interface WhileReadingQuestion {
 type CheckData = Record<string, CheckItem>;
 type QuestionsData = Record<string, any>;
 
+interface ResultsProps {
+    passageTitle: string;
+    passageContent: string;
+    savedAnswers: Record<string, string>;
+    correctedSummary: string;
+    questions: QuestionsData;
+    checks: CheckData;
+    onBack: () => void;
+}
+
 export default function Results({
     passageTitle,
     passageContent,
     savedAnswers,
     correctedSummary,
+    questions,
+    checks,
     onBack,
 }: ResultsProps) {
-    const checks = checkData as CheckData;
-    const questions = questionsData as QuestionsData;
     const passageRef = useRef<HTMLDivElement>(null);
     const sentenceRefs = useRef<Map<number, HTMLSpanElement>>(new Map());
     const [sentencePositions, setSentencePositions] = useState<Map<number, number>>(new Map());
@@ -411,7 +411,7 @@ function ResultCard({
                 delay: 0.2 + index * 0.15,
                 scale: { duration: 0.2, delay: 0 }
             }}
-            style={isMobile ? {} : { top: Math.max(0, yPosition - 20) }}
+            style={isMobile ? {} : { top: Math.max(0, yPosition - 20), zIndex: isHovered ? 10 : 1 }}
             className={`${isMobile ? "relative" : "absolute w-full"} bg-white rounded-xl border border-black/10 p-4 cursor-pointer transition-shadow duration-200 ${isHovered ? "shadow-lg" : "shadow-sm"
                 }`}
             onMouseEnter={() => onHover(questionKey)}
