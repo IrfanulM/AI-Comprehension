@@ -455,6 +455,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                                                             placeholder="Type your answer..."
                                                             className="w-full p-3 text-sm font-sans bg-[#f5f5f5] rounded-lg border-0 resize-none focus:outline-none focus:ring-2 focus:ring-black/10 scrollbar-none"
                                                             rows={3}
+                                                            maxLength={1000}
                                                         />
                                                     </div>
                                                 );
@@ -512,6 +513,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                                                             placeholder="Type your answer..."
                                                             className="w-full p-3 text-sm font-sans bg-[#f5f5f5] rounded-lg border-0 resize-none focus:outline-none focus:ring-2 focus:ring-black/10 scrollbar-none"
                                                             rows={3}
+                                                            maxLength={500}
                                                         />
                                                     </div>
                                                 );
@@ -564,6 +566,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                                                     placeholder="Type your answer..."
                                                     className="w-full p-3 text-sm font-sans bg-[#f5f5f5] rounded-lg border-0 resize-none focus:outline-none focus:ring-2 focus:ring-black/10 scrollbar-none"
                                                     rows={3}
+                                                    maxLength={500}
                                                 />
                                             </div>
                                         ))}

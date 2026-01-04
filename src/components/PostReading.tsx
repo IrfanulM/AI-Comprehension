@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface PostReadingProps {
     passageTitle: string;
@@ -17,8 +17,14 @@ export default function PostReading({
     onBack,
 }: PostReadingProps) {
     const [correctedSummary, setCorrectedSummary] = useState(summary);
+    const [showValidationError, setShowValidationError] = useState(false);
 
     const handleSubmit = () => {
+        if (!correctedSummary.trim()) {
+            setShowValidationError(true);
+            setTimeout(() => setShowValidationError(false), 3000);
+            return;
+        }
         onSubmit(correctedSummary);
     };
 
@@ -64,6 +70,7 @@ export default function PostReading({
                             onChange={(e) => setCorrectedSummary(e.target.value)}
                             className="w-full min-h-[250px] p-6 text-[#1a1a1a] text-lg leading-relaxed border border-black/10 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-transparent bg-[#fafafa] scrollbar-none"
                             placeholder="Edit the summary here..."
+                            maxLength={1000}
                         />
                         <div className="absolute bottom-4 right-4 text-xs text-[#aaa]">
                             {correctedSummary.length} characters
@@ -71,19 +78,33 @@ export default function PostReading({
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-4 justify-end">
+                    <div className="flex gap-4 justify-end relative">
                         <button
                             onClick={() => setCorrectedSummary(summary)}
                             className="px-6 py-3 text-[#666] font-medium rounded-full border border-black/10 hover:scale-105 active:scale-[0.98] transition-all duration-200 cursor-pointer"
                         >
                             Reset
                         </button>
-                        <button
-                            onClick={handleSubmit}
-                            className="px-8 py-3 bg-[#1a1a1a] text-white font-medium rounded-full shadow-lg hover:scale-105 active:scale-[0.98] transition-all duration-200 cursor-pointer"
-                        >
-                            Submit
-                        </button>
+                        <div className="relative">
+                            <AnimatePresence>
+                                {showValidationError && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 10 }}
+                                        className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 whitespace-nowrap text-red-500 text-sm font-medium bg-red-50 px-4 py-2 rounded-full border border-red-100 shadow-lg z-50"
+                                    >
+                                        Please don't erase the whole summary.
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                            <button
+                                onClick={handleSubmit}
+                                className="px-8 py-3 bg-[#1a1a1a] text-white font-medium rounded-full shadow-lg hover:scale-105 active:scale-[0.98] transition-all duration-200 cursor-pointer"
+                            >
+                                Submit
+                            </button>
+                        </div>
                     </div>
                 </motion.div>
             </div>

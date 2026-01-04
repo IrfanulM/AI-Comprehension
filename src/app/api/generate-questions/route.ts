@@ -8,7 +8,7 @@ const openai = new OpenAI({
 export async function POST(request: NextRequest) {
     try {
         const { passageTitle, passageContent, grade } = await request.json();
-        const studentGrade = grade || 7;
+        const studentGrade = grade || 10;
 
         if (!passageTitle || !passageContent) {
             return NextResponse.json(

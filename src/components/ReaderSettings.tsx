@@ -17,18 +17,21 @@ interface ReaderSettingsProps {
 export default function ReaderSettings({ currentSentenceIndex, sentences, totalSentences, readOnlyMode, onReadOnlyChange, fullViewMode, onFullViewChange, onResetToStart, onSearchQueryChange }: ReaderSettingsProps) {
 
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<{ sentenceIndex: number; text: string }[]>([]);
     const searchRef = useRef<HTMLDivElement>(null);
+    const mobileMenuRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-
-
-    // Close search when clicking outside
+    // Close dropdowns when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
                 setIsSearchOpen(false);
+            }
+            if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+                setIsMobileMenuOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -52,7 +55,6 @@ export default function ReaderSettings({ currentSentenceIndex, sentences, totalS
         const query = searchQuery.toLowerCase();
         const results: { sentenceIndex: number; text: string }[] = [];
 
-        // In read-only mode, search all sentences. Otherwise, only up to current.
         const maxIndex = readOnlyMode ? sentences.length - 1 : currentSentenceIndex;
         for (let i = 0; i <= maxIndex && i < sentences.length; i++) {
             if (sentences[i].text.toLowerCase().includes(query)) {
@@ -68,8 +70,6 @@ export default function ReaderSettings({ currentSentenceIndex, sentences, totalS
         onSearchQueryChange?.(searchQuery);
     }, [searchQuery, onSearchQueryChange]);
 
-
-
     const highlightMatch = (text: string, query: string) => {
         if (!query.trim()) return text;
         const parts = text.split(new RegExp(`(${query})`, 'gi'));
@@ -80,10 +80,98 @@ export default function ReaderSettings({ currentSentenceIndex, sentences, totalS
         );
     };
 
+    // Toggle component for reuse
+    const Toggle = ({ label, icon, isOn, onToggle }: { label: string; icon: React.ReactNode; isOn: boolean; onToggle: () => void }) => (
+        <div
+            onClick={onToggle}
+            className="flex items-center justify-between gap-3 cursor-pointer select-none"
+        >
+            <div className="flex items-center gap-2">
+                {icon}
+                <span className="text-sm text-[#1a1a1a] font-medium">{label}</span>
+            </div>
+            <div className={`w-10 h-5 rounded-full transition-colors ${isOn ? "bg-[#1a1a1a]" : "bg-[#ddd]"}`}>
+                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform mt-0.5 ${isOn ? "translate-x-5 ml-0.5" : "translate-x-0.5"}`} />
+            </div>
+        </div>
+    );
+
     return (
         <>
-            {/* Top Right Group: Search and Restart */}
-            <div className="fixed top-8 right-8 z-40 flex items-center gap-3">
+            {/* MOBILE: Single settings button with dropdown */}
+            <div ref={mobileMenuRef} className="md:hidden fixed top-8 right-8 z-40">
+                <div
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    className="bg-white/80 hover:bg-white backdrop-blur-sm rounded-full p-2.5 shadow-sm border border-black/5 transition-all duration-300 cursor-pointer"
+                >
+                    <svg className="w-5 h-5 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+
+                {isMobileMenuOpen && (
+                    <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-lg border border-black/10 overflow-hidden w-[280px]">
+                        {/* Search */}
+                        <div className="p-3 border-b border-black/5">
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder={readOnlyMode ? "Search in passage..." : "Search up to current..."}
+                                className="w-full text-sm bg-[#f5f5f5] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/10"
+                                maxLength={100}
+                            />
+                            {searchQuery.trim() && (
+                                <div className="max-h-[150px] overflow-y-auto mt-2">
+                                    {searchResults.length === 0 ? (
+                                        <div className="p-2 text-sm text-[#888] text-center">No matches found</div>
+                                    ) : (
+                                        searchResults.map((result, i) => (
+                                            <div key={i} className="p-2 text-xs border-b border-black/5 last:border-0">
+                                                <span className="text-[#888] text-[10px] uppercase tracking-wider">Sentence {result.sentenceIndex + 1}</span>
+                                                <p className="mt-1 text-[#1a1a1a] line-clamp-2">{highlightMatch(result.text, searchQuery)}</p>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Toggle Options */}
+                        <div className="p-4 space-y-4">
+                            <Toggle 
+                                label="Read Only"
+                                icon={<svg className="w-4 h-4 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>}
+                                isOn={readOnlyMode}
+                                onToggle={() => {
+                                    if (readOnlyMode && currentSentenceIndex > 0) onResetToStart();
+                                    onReadOnlyChange(!readOnlyMode);
+                                }}
+                            />
+                            <Toggle 
+                                label="Full View"
+                                icon={<svg className="w-4 h-4 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>}
+                                isOn={fullViewMode}
+                                onToggle={() => onFullViewChange(!fullViewMode)}
+                            />
+                        </div>
+
+                        {/* Restart Button */}
+                        <div className="p-3 border-t border-black/5">
+                            <button
+                                onClick={() => { onResetToStart(); setIsMobileMenuOpen(false); }}
+                                className="w-full py-2 px-4 text-sm font-medium text-[#666] bg-[#f5f5f5] rounded-lg hover:bg-[#eee] transition-colors cursor-pointer"
+                            >
+                                Restart Reading
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* DESKTOP: Top Right Group - Search and Restart */}
+            <div className="hidden md:flex fixed top-8 right-8 z-40 items-center gap-3">
                 {/* Search */}
                 <div ref={searchRef} className="relative">
                     <div
@@ -105,6 +193,7 @@ export default function ReaderSettings({ currentSentenceIndex, sentences, totalS
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder={readOnlyMode ? "Search in passage..." : "Search up to current sentence..."}
                                     className="w-full text-sm bg-[#f5f5f5] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/10"
+                                    maxLength={100}
                                 />
                             </div>
                             {searchQuery.trim() && (
@@ -139,15 +228,12 @@ export default function ReaderSettings({ currentSentenceIndex, sentences, totalS
                 </div>
             </div>
 
-            {/* Bottom Right Group: Pace, Read Only, Full View */}
-            <div className="fixed bottom-8 right-8 z-40 flex items-center gap-3">
-
-
+            {/* DESKTOP: Bottom Right Group - Read Only, Full View */}
+            <div className="hidden md:flex fixed bottom-8 right-8 z-40 items-center gap-3">
                 {/* Read Only Mode Toggle */}
                 <div
                     onClick={() => {
                         if (readOnlyMode && currentSentenceIndex > 0) {
-                            // Turning OFF read-only mode - reset to start
                             onResetToStart();
                         }
                         onReadOnlyChange(!readOnlyMode);

@@ -7,7 +7,7 @@ interface SettingsProps {
 }
 
 export default function Settings({ onGradeChange }: SettingsProps) {
-    const [grade, setGrade] = useState<number>(7);
+    const [grade, setGrade] = useState<number>(10);
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 

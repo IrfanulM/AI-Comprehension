@@ -13,7 +13,7 @@ interface QuestionAnswer {
 export async function POST(request: NextRequest) {
     try {
         const { passageContent, questions, answers, correctedSummary, grade } = await request.json();
-        const studentGrade = grade || 7;
+        const studentGrade = grade || 10;
 
         if (!passageContent || !questions || !answers) {
             return NextResponse.json(

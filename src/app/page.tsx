@@ -32,6 +32,19 @@ interface ChecksData {
 }
 
 const CACHE_PREFIX = "questions_";
+const API_TIMEOUT_MS = 30000;
+
+// Helper to create fetch with timeout
+const fetchWithTimeout = async (url: string, options: RequestInit, timeoutMs: number): Promise<Response> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        return response;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+};
 
 export default function Home() {
     const [appState, setAppState] = useState<AppState>("menu");
@@ -41,7 +54,7 @@ export default function Home() {
     const [savedAnswers, setSavedAnswers] = useState<Record<string, string>>({});
     const [correctedSummary, setCorrectedSummary] = useState("");
     const [error, setError] = useState<string | null>(null);
-    const [selectedGrade, setSelectedGrade] = useState<number>(7);
+    const [selectedGrade, setSelectedGrade] = useState<number>(10);
 
     const passages = Object.values(passageData);
 
@@ -50,10 +63,12 @@ export default function Home() {
         ? (Object.values(questions).find((q) => q.type === "post-reading" || q.summary) as PostReadingQuestion | undefined)
         : undefined;
 
+    const getQuestionsCacheKey = (passageId: string, grade: number) => `${CACHE_PREFIX}${passageId}_grade${grade}`;
+
     // Check localStorage for cached questions
-    const getCachedQuestions = (passageId: string): QuestionsData | null => {
+    const getCachedQuestions = (passageId: string, grade: number): QuestionsData | null => {
         if (typeof window === "undefined") return null;
-        const cached = localStorage.getItem(CACHE_PREFIX + passageId);
+        const cached = localStorage.getItem(getQuestionsCacheKey(passageId, grade));
         if (cached) {
             try {
                 return JSON.parse(cached);
@@ -65,15 +80,18 @@ export default function Home() {
     };
 
     // Save questions to localStorage
-    const cacheQuestions = (passageId: string, questionsData: QuestionsData) => {
+    const cacheQuestions = (passageId: string, grade: number, questionsData: QuestionsData) => {
         if (typeof window === "undefined") return;
-        localStorage.setItem(CACHE_PREFIX + passageId, JSON.stringify(questionsData));
+        localStorage.setItem(getQuestionsCacheKey(passageId, grade), JSON.stringify(questionsData));
     };
 
+    // Cache key helpers
+    const getAnswersCacheKey = (passageId: string, grade: number) => `answers_${passageId}_grade${grade}`;
+
     // Check localStorage for cached answers
-    const getCachedAnswers = (passageId: string): Record<string, string> => {
+    const getCachedAnswers = (passageId: string, grade: number): Record<string, string> => {
         if (typeof window === "undefined") return {};
-        const cached = localStorage.getItem(`answers_${passageId}`);
+        const cached = localStorage.getItem(getAnswersCacheKey(passageId, grade));
         if (cached) {
             try {
                 return JSON.parse(cached);
@@ -108,7 +126,7 @@ export default function Home() {
         setSavedAnswers(prev => {
             const newAnswers = { ...prev, [key]: answer };
             if (selectedPassage) {
-                localStorage.setItem(`answers_${selectedPassage.id}`, JSON.stringify(newAnswers));
+                localStorage.setItem(getAnswersCacheKey(selectedPassage.id, selectedGrade), JSON.stringify(newAnswers));
             }
             return newAnswers;
         });
@@ -116,24 +134,24 @@ export default function Home() {
 
     const handleSelectPassage = async (passage: any) => {
         setSelectedPassage(passage);
-        setSavedAnswers(getCachedAnswers(passage.id));
+        setSavedAnswers(getCachedAnswers(passage.id, selectedGrade));
         setCorrectedSummary("");
         setError(null);
         setChecks(null);
 
-        // Check cache first
-        const cached = getCachedQuestions(passage.id);
+        // Check cache first (with current grade)
+        const cached = getCachedQuestions(passage.id, selectedGrade);
         if (cached) {
             setQuestions(cached);
             setAppState("reading");
             return;
         }
 
-        // Fetch from API
+        // Fetch from API with timeout
         setAppState("loading-questions");
 
         try {
-            const response = await fetch("/api/generate-questions", {
+            const response = await fetchWithTimeout("/api/generate-questions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -141,19 +159,28 @@ export default function Home() {
                     passageContent: passage.content,
                     grade: selectedGrade,
                 }),
-            });
+            }, API_TIMEOUT_MS);
 
             if (!response.ok) {
                 throw new Error("Failed to generate questions");
             }
 
             const data = await response.json();
+            
+            // Validate response has questions object with at least one entry
+            if (!data.questions || typeof data.questions !== "object" || Object.keys(data.questions).length === 0) {
+                throw new Error("Invalid response from AI");
+            }
+            
             setQuestions(data.questions);
-            cacheQuestions(passage.id, data.questions);
+            cacheQuestions(passage.id, selectedGrade, data.questions);
             setAppState("reading");
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error generating questions:", err);
-            setError("Failed to generate questions. Please try again.");
+            const message = err.name === "AbortError" 
+                ? "Request timed out. Please try again." 
+                : "Failed to generate questions. Please try again.";
+            setError(message);
             setAppState("menu");
         }
     };
@@ -161,7 +188,7 @@ export default function Home() {
     const handleFinishReading = (answers: Record<string, string>) => {
         setSavedAnswers(answers);
         if (selectedPassage) {
-            localStorage.setItem(`answers_${selectedPassage.id}`, JSON.stringify(answers));
+            localStorage.setItem(getAnswersCacheKey(selectedPassage.id, selectedGrade), JSON.stringify(answers));
         }
         if (postReadingQuestion) {
             setAppState("post-reading");
@@ -180,7 +207,7 @@ export default function Home() {
         setError(null);
 
         try {
-            const response = await fetch("/api/grade-answers", {
+            const response = await fetchWithTimeout("/api/grade-answers", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -190,22 +217,31 @@ export default function Home() {
                     correctedSummary: summary,
                     grade: selectedGrade,
                 }),
-            });
+            }, API_TIMEOUT_MS);
 
             if (!response.ok) {
                 throw new Error("Failed to grade answers");
             }
 
             const data = await response.json();
+            
+            // Validate response has results
+            if (!data.results || typeof data.results !== "object") {
+                throw new Error("Invalid response from AI");
+            }
+            
             setChecks(data.results);
             // Cache results
             if (selectedPassage) {
                 cacheResults(selectedPassage.id, data.results, answers, summary);
             }
             setAppState("results");
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error grading answers:", err);
-            setError("Failed to grade answers. Please try again.");
+            const message = err.name === "AbortError" 
+                ? "Request timed out. Please try again." 
+                : "Failed to grade answers. Please try again.";
+            setError(message);
             setAppState("post-reading");
         }
     };
@@ -222,7 +258,7 @@ export default function Home() {
 
     const handleViewResults = (passage: any) => {
         const cachedResults = getCachedResults(passage.id);
-        const cachedQuestions = getCachedQuestions(passage.id);
+        const cachedQuestions = getCachedQuestions(passage.id, selectedGrade);
         if (cachedResults && cachedQuestions) {
             setSelectedPassage(passage);
             setQuestions(cachedQuestions);

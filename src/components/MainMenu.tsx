@@ -22,8 +22,16 @@ export default function MainMenu({ passages, onSelect, onViewResults }: MainMenu
     useEffect(() => {
         const state: Record<string, { hasQuestions: boolean; hasResults: boolean }> = {};
         passages.forEach(p => {
+            // Check if any questions cache exists
+            let hasQuestions = false;
+            for (let grade = 1; grade <= 12; grade++) {
+                if (localStorage.getItem(`questions_${p.id}_grade${grade}`) !== null) {
+                    hasQuestions = true;
+                    break;
+                }
+            }
             state[p.id] = {
-                hasQuestions: localStorage.getItem(`questions_${p.id}`) !== null,
+                hasQuestions,
                 hasResults: localStorage.getItem(`results_${p.id}`) !== null,
             };
         });
@@ -33,8 +41,12 @@ export default function MainMenu({ passages, onSelect, onViewResults }: MainMenu
 
     const handleClearCache = (passageId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        localStorage.removeItem(`questions_${passageId}`);
-        localStorage.removeItem(`answers_${passageId}`);
+        // Clear all question and answer caches
+        for (let grade = 1; grade <= 12; grade++) {
+            localStorage.removeItem(`questions_${passageId}_grade${grade}`);
+            localStorage.removeItem(`answers_${passageId}_grade${grade}`);
+        }
+        // Clear single results cache
         localStorage.removeItem(`results_${passageId}`);
         setClearedPassages(prev => new Set(prev).add(passageId));
         setCacheState(prev => ({ ...prev, [passageId]: { hasQuestions: false, hasResults: false } }));
