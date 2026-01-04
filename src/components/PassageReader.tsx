@@ -58,7 +58,8 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
     const fullViewPassageRef = useRef<HTMLDivElement>(null);
     const fullViewSentenceRefs = useRef<Map<number, HTMLSpanElement>>(new Map());
     const lastScrollTime = useRef(0);
-    const isTrackpad = useRef(false);
+    const lastEventTimestamp = useRef(0);
+    const wheelDeltas = useRef<number[]>([]);
 
     const sentences = (() => {
         const content = passage.content;
@@ -255,33 +256,51 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         const handleWheel = (e: WheelEvent) => {
             if (fullViewMode) return;
             
-            const currentDelta = Math.abs(e.deltaY);
-            if (currentDelta < 5) return;
-            
-            const now = Date.now();
-            const timeSinceLast = now - lastScrollTime.current;
-
-            if (timeSinceLast < 30) {
-                isTrackpad.current = true;
-            } else if (timeSinceLast > 1000) {
-                isTrackpad.current = false;
-            }
-
-            const cooldown = isTrackpad.current ? 400 : 80;
-
-            if (timeSinceLast < cooldown) {
-                e.preventDefault();
-                return;
-            }
-
             e.preventDefault();
-            if (e.deltaY > 0) {
-                if (activeQuestion) return;
-                lastScrollTime.current = now;
-                advance();
-            } else if (e.deltaY < 0) {
-                lastScrollTime.current = now;
-                retreat();
+            
+            const delta = Math.abs(e.deltaY);
+            if (delta < 5) return;
+
+            const now = Date.now();
+            const timeSinceLastEvent = now - lastEventTimestamp.current;
+            const timeSinceLastTrigger = now - lastScrollTime.current;
+            
+            lastEventTimestamp.current = now;
+
+            const isStream = timeSinceLastEvent < 60;
+
+            if (isStream) {
+                if (wheelDeltas.current.length > 20) wheelDeltas.current.shift();
+                wheelDeltas.current.push(delta);
+
+                const isPeak = wheelDeltas.current.every((v, i) => 
+                    i === wheelDeltas.current.length - 1 || delta >= v
+                );
+
+                if (isPeak && timeSinceLastTrigger > 100) {
+                    if (e.deltaY > 0) {
+                        if (activeQuestion) return;
+                        lastScrollTime.current = now;
+                        wheelDeltas.current = [];
+                        advance();
+                    } else if (e.deltaY < 0) {
+                        lastScrollTime.current = now;
+                        wheelDeltas.current = [];
+                        retreat();
+                    }
+                }
+            } else {
+                wheelDeltas.current = [delta];
+                if (timeSinceLastTrigger > 100) {
+                    if (e.deltaY > 0) {
+                        if (activeQuestion) return;
+                        lastScrollTime.current = now;
+                        advance();
+                    } else if (e.deltaY < 0) {
+                        lastScrollTime.current = now;
+                        retreat();
+                    }
+                }
             }
         };
 
