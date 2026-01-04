@@ -12,7 +12,8 @@ interface QuestionAnswer {
 
 export async function POST(request: NextRequest) {
     try {
-        const { passageContent, questions, answers, correctedSummary } = await request.json();
+        const { passageContent, questions, answers, correctedSummary, grade } = await request.json();
+        const studentGrade = grade || 7;
 
         if (!passageContent || !questions || !answers) {
             return NextResponse.json(
@@ -47,9 +48,10 @@ export async function POST(request: NextRequest) {
             (key) => questions[key].type === "post-reading" || questions[key].summary
         );
 
-const systemPrompt = `You are an encouraging reading comprehension grader.
+const systemPrompt = `You are an encouraging reading comprehension grader for Grade ${studentGrade} students.
 
 GRADING PHILOSOPHY:
+- This student is in Grade ${studentGrade}. Adjust your expectations, vocabulary complexity, and feedback tone to be appropriate for this level.
 - Be generous and encouraging to motivate students
 - 10s are absolutely acceptable for good answers, they dont have to absolutely perfect to get a 10. Feel free to give out 10s.
 - Scores below 5 should be RARE (only for completely wrong answers)

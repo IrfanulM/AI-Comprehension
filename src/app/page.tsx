@@ -8,6 +8,7 @@ import PostReading from "@/components/PostReading";
 import Results from "@/components/Results";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import ErrorMessage from "@/components/ErrorMessage";
+import Settings from "@/components/Settings";
 import passageData from "@/data/passage.json";
 
 type AppState = "menu" | "loading-questions" | "reading" | "post-reading" | "loading-results" | "results";
@@ -40,6 +41,7 @@ export default function Home() {
     const [savedAnswers, setSavedAnswers] = useState<Record<string, string>>({});
     const [correctedSummary, setCorrectedSummary] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [selectedGrade, setSelectedGrade] = useState<number>(7);
 
     const passages = Object.values(passageData);
 
@@ -137,6 +139,7 @@ export default function Home() {
                 body: JSON.stringify({
                     passageTitle: passage.title,
                     passageContent: passage.content,
+                    grade: selectedGrade,
                 }),
             });
 
@@ -185,6 +188,7 @@ export default function Home() {
                     questions,
                     answers,
                     correctedSummary: summary,
+                    grade: selectedGrade,
                 }),
             });
 
@@ -286,10 +290,13 @@ export default function Home() {
 
     // Menu state
     return (
-        <MainMenu
-            passages={passages}
-            onSelect={handleSelectPassage}
-            onViewResults={handleViewResults}
-        />
+        <>
+            <Settings onGradeChange={setSelectedGrade} />
+            <MainMenu
+                passages={passages}
+                onSelect={handleSelectPassage}
+                onViewResults={handleViewResults}
+            />
+        </>
     );
 }

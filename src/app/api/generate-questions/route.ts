@@ -7,7 +7,8 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
     try {
-        const { passageTitle, passageContent } = await request.json();
+        const { passageTitle, passageContent, grade } = await request.json();
+        const studentGrade = grade || 7;
 
         if (!passageTitle || !passageContent) {
             return NextResponse.json(
@@ -31,9 +32,10 @@ export async function POST(request: NextRequest) {
             .map((s: string, i: number) => `${i + 1}. ${s}`)
             .join("\n");
 
-const systemPrompt = `You are an expert reading comprehension instructor for young middle school / high school students.
+const systemPrompt = `You are an expert reading comprehension instructor for Grade ${studentGrade} students.
 
 TASK: Generate ${questionCount} while-reading questions and 1 post-reading summary task.
+CRITICAL: All questions and language MUST be appropriate for Grade ${studentGrade} level. Adjust vocabulary complexity, reasoning depth, and question difficulty accordingly.
 
 WHILE-READING QUESTIONS:
 - Each specifies a sentence-number where it appears (the "Stop Point")

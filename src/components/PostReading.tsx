@@ -62,7 +62,7 @@ export default function PostReading({
                         <textarea
                             value={correctedSummary}
                             onChange={(e) => setCorrectedSummary(e.target.value)}
-                            className="w-full min-h-[250px] p-6 text-[#1a1a1a] text-lg leading-relaxed border border-black/10 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-transparent bg-[#fafafa]"
+                            className="w-full min-h-[250px] p-6 text-[#1a1a1a] text-lg leading-relaxed border border-black/10 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-transparent bg-[#fafafa] scrollbar-none"
                             placeholder="Edit the summary here..."
                         />
                         <div className="absolute bottom-4 right-4 text-xs text-[#aaa]">

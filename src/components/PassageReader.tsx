@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react
 import { motion, AnimatePresence } from "framer-motion";
 import QuestionTooltip from "@/components/QuestionTooltip";
 import ProgressIndicator from "@/components/ProgressIndicator";
+import ReaderSettings from "@/components/ReaderSettings";
 
 interface Passage {
     id: string;
@@ -45,9 +46,17 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
     const [answeredInSession, setAnsweredInSession] = useState<Set<string>>(new Set());
     const [draftAnswers, setDraftAnswers] = useState<Record<string, string>>({});
     const [tooltipY, setTooltipY] = useState(0);
+
+    const [readOnlyMode, setReadOnlyMode] = useState(false);
+    const [fullViewMode, setFullViewMode] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [showValidationError, setShowValidationError] = useState(false);
+    const [sentencePositions, setSentencePositions] = useState<Map<number, number>>(new Map());
     const scrollCooldown = useRef(false);
     const contentRef = useRef<HTMLDivElement>(null);
     const currentSentenceRef = useRef<HTMLSpanElement>(null);
+    const fullViewPassageRef = useRef<HTMLDivElement>(null);
+    const fullViewSentenceRefs = useRef<Map<number, HTMLSpanElement>>(new Map());
 
     const sentences = (() => {
         const content = passage.content;
@@ -67,6 +76,32 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         return result;
     })();
 
+    // Get all while-reading questions as array
+    const whileReadingQuestions = Object.entries(questions)
+        .filter(([, q]) => q.type === "while-reading")
+        .map(([key, q]) => ({ key, question: q as WhileReadingQuestion }));
+
+    // Check if all while-reading questions have answers
+    const allQuestionsAnswered = () => {
+        return whileReadingQuestions.every(({ key }) => 
+            savedAnswers[key] && savedAnswers[key].trim().length > 0
+        );
+    };
+
+    const highlightSearch = (text: string, query: string) => {
+        if (!query.trim()) return text;
+        const parts = text.split(new RegExp(`(${query})`, "gi"));
+        return parts.map((part, i) =>
+            part.toLowerCase() === query.toLowerCase() ? (
+                <mark key={i} className="bg-yellow-200/80 rounded px-0.5 text-[#1a1a1a]">
+                    {part}
+                </mark>
+            ) : (
+                part
+            )
+        );
+    };
+
     const updateTooltipPosition = useCallback(() => {
         if (currentSentenceRef.current) {
             const rect = currentSentenceRef.current.getBoundingClientRect();
@@ -78,8 +113,8 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         const sentenceNumber = sentenceIndex + 1;
         let questionIndex = 0;
         for (const [key, q] of Object.entries(questions)) {
-            // Only check while-reading questions
-            if (q.type === "while-reading" && q["sentence-number"] === sentenceNumber && !answeredInSession.has(key)) {
+            // Only check while-reading questions (skip if in read-only mode)
+            if (!readOnlyMode && q.type === "while-reading" && q["sentence-number"] === sentenceNumber && !answeredInSession.has(key)) {
                 const side = questionIndex % 2 === 0 ? "right" : "left";
                 setActiveQuestion({ key, question: q, side });
                 requestAnimationFrame(() => {
@@ -108,11 +143,17 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         scrollCooldown.current = true;
         setIsAdvancing(true);
         setFadingOutIndex(null);
+        
+        const hasQuestion = checkForQuestion(currentIndex);
+        if (hasQuestion) {
+            scrollCooldown.current = false;
+            return;
+        }
+        
         const nextIndex = Math.min(currentIndex + 1, sentences.length - 1);
         setCurrentIndex(nextIndex);
         setTimeout(() => {
             scrollCooldown.current = false;
-            checkForQuestion(nextIndex);
         }, 300);
     };
 
@@ -170,8 +211,39 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         }
     }, [activeQuestion, topPosition, updateTooltipPosition]);
 
+    // Calculate sentence positions for full view mode
+    useEffect(() => {
+        if (!fullViewMode || readOnlyMode) return;
+
+        const updatePositions = () => {
+            if (!fullViewPassageRef.current) return;
+            const passageRect = fullViewPassageRef.current.getBoundingClientRect();
+            const newPositions = new Map<number, number>();
+
+            fullViewSentenceRefs.current.forEach((el, sentenceNum) => {
+                if (el) {
+                    const rect = el.getBoundingClientRect();
+                    // Position relative to passage container
+                    newPositions.set(sentenceNum, rect.top - passageRect.top + rect.height / 2);
+                }
+            });
+
+            setSentencePositions(newPositions);
+        };
+
+        // Small delay to ensure layout is complete
+        const timer = setTimeout(updatePositions, 100);
+        window.addEventListener("resize", updatePositions);
+
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener("resize", updatePositions);
+        };
+    }, [fullViewMode, readOnlyMode]);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (fullViewMode) return;
             if (e.key === "ArrowDown" || e.key === " ") {
                 if (activeQuestion) return; // Block forward when question active
                 e.preventDefault();
@@ -183,6 +255,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         };
 
         const handleWheel = (e: WheelEvent) => {
+            if (fullViewMode) return;
             e.preventDefault();
             if (e.deltaY > 0) {
                 if (activeQuestion) return; // Block forward when question active
@@ -199,7 +272,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
             window.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener("wheel", handleWheel);
         };
-    });
+    }, [activeQuestion, advance, retreat, fullViewMode]);
 
     const getColorClass = (distanceFromCurrent: number): string => {
         if (distanceFromCurrent === 0) return "text-[#1c1c1c]";
@@ -273,9 +346,11 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
     return (
         <div className="relative h-screen w-screen overflow-hidden bg-white">
             {/* Title */}
-            <h1 className="absolute left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-[4vh]">
-                {passage.title}
-            </h1>
+            {!fullViewMode && (
+                <h1 className="absolute left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-[4vh]">
+                    {passage.title}
+                </h1>
+            )}
 
             {/* Back Button */}
             {onBack && (
@@ -289,82 +364,374 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                 </button>
             )}
 
-            {/* Top Fade Gradient */}
-            <div
-                className="pointer-events-none absolute left-0 right-0 top-0 z-20 bg-gradient-to-b from-white from-50% to-transparent h-[15vh]"
+            {/* Reader Settings */}
+            <ReaderSettings
+                currentSentenceIndex={currentIndex}
+                sentences={sentences}
+                totalSentences={sentences.length}
+                readOnlyMode={readOnlyMode}
+                onReadOnlyChange={(newValue) => {
+                    if (newValue && activeQuestion) {
+                        setActiveQuestion(null);
+                    }
+                    setReadOnlyMode(newValue);
+                }}
+                fullViewMode={fullViewMode}
+                onFullViewChange={(newValue) => {
+                    if (newValue) {
+                        // Entering full view - dismiss active question and show all sentences
+                        setActiveQuestion(null);
+                        setCurrentIndex(sentences.length - 1);
+                    } else {
+                        // Exiting full view - reset to start
+                        setCurrentIndex(0);
+                        setFadingOutIndex(null);
+                        setActiveQuestion(null);
+                        setAnsweredInSession(new Set());
+                        setDraftAnswers({});
+                        setSentencePositions(new Map());
+                        fullViewSentenceRefs.current.clear();
+                    }
+                    setFullViewMode(newValue);
+                }}
+                onResetToStart={() => {
+                    setCurrentIndex(0);
+                    setFadingOutIndex(null);
+                    setActiveQuestion(null);
+                    setSavedAnswers(initialAnswers || {});
+                    setAnsweredInSession(new Set());
+                    setDraftAnswers({});
+                }}
+                onSearchQueryChange={setSearchQuery}
             />
 
-            {/* Content */}
-            <div
-                ref={contentRef}
-                className="absolute left-1/2 z-10 -translate-x-1/2 transition-[top] duration-400 ease-out font-serif font-medium w-[clamp(300px,55vw,1000px)] text-[clamp(20px,2.2vw,34px)] leading-[1.7]"
-                style={{
-                    top: topPosition !== null ? `${topPosition}px` : "50%",
-                }}
-            >
-                <p>
-                    {visibleSentences.map((sentence, i) => {
-                        const distanceFromCurrent = currentIndex - i;
-                        const colorClass = getColorClass(distanceFromCurrent);
-                        const isCurrentSentence = i === currentIndex;
-                        const isFadingOut = i === fadingOutIndex;
-                        const shouldAnimateIn = isCurrentSentence && isAdvancing;
+            {/* Top Fade Gradient */}
+            {!fullViewMode && (
+                <div
+                    className="pointer-events-none absolute left-0 right-0 top-0 z-20 bg-gradient-to-b from-white from-50% to-transparent h-[15vh]"
+                />
+            )}
 
-                        if (isFadingOut) {
-                            return renderSentence(sentence, i, "text-[#1c1c1c]", "animate-letter-hide");
-                        }
+            {fullViewMode ? (
+                /* Full View Mode */
+                <div className="fixed inset-0 z-10 overflow-y-auto bg-white">
+                    {/* Title */}
+                    <h1 className="absolute left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-[4vh]">
+                        {passage.title}
+                    </h1>
 
-                        if (shouldAnimateIn) {
-                            return renderSentence(sentence, i, colorClass, "animate-letter-reveal");
-                        }
+                    {/* Content */}
+                    <div className="pt-[12vh] px-4 pb-16">
+                        {!readOnlyMode ? (
+                            <>
+                                {/* Desktop Layout */}
+                                <div className="hidden lg:grid grid-cols-[1fr_700px_1fr] gap-6 max-w-[1400px] mx-auto">
+                                    {/* Left Column */}
+                                    <div className="relative">
+                                        {whileReadingQuestions
+                                            .filter((_, i) => i % 2 === 1)
+                                            .map(({ key, question }) => {
+                                                const yPos = sentencePositions.get(question["sentence-number"]) || 0;
+                                                return (
+                                                    <div
+                                                        key={key}
+                                                        className="absolute w-full bg-white rounded-xl border border-black/10 p-4 shadow-sm"
+                                                        style={{ top: Math.max(0, yPos - 20) }}
+                                                    >
+                                                        {/* Arrow */}
+                                                        <div className="absolute top-5 -right-1.5 w-3 h-3 bg-white border-black/10 rotate-45 border-t border-r" />
+                                                        <span className="text-xs font-semibold text-[#888] uppercase tracking-wider block mb-2">
+                                                            Question {whileReadingQuestions.findIndex(q => q.key === key) + 1}
+                                                        </span>
+                                                        <p className="text-sm font-medium text-[#1a1a1a] mb-3 leading-snug">
+                                                            {question.question}
+                                                        </p>
+                                                        <textarea
+                                                            value={savedAnswers[key] || ""}
+                                                            onChange={(e) => {
+                                                                setSavedAnswers(prev => ({ ...prev, [key]: e.target.value }));
+                                                                onSaveAnswer?.(key, e.target.value);
+                                                            }}
+                                                            placeholder="Type your answer..."
+                                                            className="w-full p-3 text-sm font-sans bg-[#f5f5f5] rounded-lg border-0 resize-none focus:outline-none focus:ring-2 focus:ring-black/10 scrollbar-none"
+                                                            rows={3}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
 
-                        return renderSentence(sentence, i, colorClass);
-                    })}
-                </p>
-            </div>
+                                    {/* Center Column - Passage */}
+                                    <div ref={fullViewPassageRef} className="relative font-serif text-[clamp(14px,1.3vw,18px)] leading-relaxed text-[#1a1a1a]">
+                                        {sentences.map((sentence, index) => {
+                                            const sentenceNumber = index + 1;
+                                            const questionForSentence = whileReadingQuestions.find(
+                                                ({ question }) => question["sentence-number"] === sentenceNumber
+                                            );
 
-            {/* Question Tooltip */}
-            <AnimatePresence>
-                {activeQuestion && (
-                    <QuestionTooltip
-                        question={activeQuestion.question.question}
-                        side={activeQuestion.side}
-                        anchorY={tooltipY}
-                        initialAnswer={draftAnswers[activeQuestion.key] || savedAnswers[activeQuestion.key] || ""}
-                        onSubmit={handleSubmitAnswer}
-                        onDraftChange={(draft) => setDraftAnswers(prev => ({ ...prev, [activeQuestion.key]: draft }))}
-                    />
-                )}
-            </AnimatePresence>
+                                            return (
+                                                <span key={index}>
+                                                    {sentence.startsNewParagraph && <span className="block h-5" />}
+                                                    <span
+                                                        ref={questionForSentence ? (el) => { if (el) fullViewSentenceRefs.current.set(sentenceNumber, el); } : undefined}
+                                                        className=""
+                                                    >
+                                                        {highlightSearch(sentence.text, searchQuery)}{" "}
+                                                    </span>
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
 
-            {/* Scroll Helper */}
-            <div
-                className={`fixed left-1/2 -translate-x-1/2 bottom-[15vh] transition-opacity duration-700 pointer-events-none ${currentIndex < 3 && !activeQuestion ? "opacity-60" : "opacity-0"}`}
-            >
-                <div className="flex flex-col items-center gap-2">
-                    <span className="text-[10px] tracking-[0.2em] uppercase text-[#999999ff] font-medium">Scroll To Keep Reading</span>
-                    <motion.div
-                        animate={{ y: [0, 6, 0] }}
-                        transition={{
-                            repeat: Infinity,
-                            duration: 2,
-                            ease: "easeInOut"
+                                    {/* Right Column */}
+                                    <div className="relative">
+                                        {whileReadingQuestions
+                                            .filter((_, i) => i % 2 === 0)
+                                            .map(({ key, question }) => {
+                                                const yPos = sentencePositions.get(question["sentence-number"]) || 0;
+                                                return (
+                                                    <div
+                                                        key={key}
+                                                        className="absolute w-full bg-white rounded-xl border border-black/10 p-4 shadow-sm"
+                                                        style={{ top: Math.max(0, yPos - 20) }}
+                                                    >
+                                                        {/* Arrow */}
+                                                        <div className="absolute top-5 -left-1.5 w-3 h-3 bg-white border-black/10 rotate-45 border-b border-l" />
+                                                        <span className="text-xs font-semibold text-[#888] uppercase tracking-wider block mb-2">
+                                                            Question {whileReadingQuestions.findIndex(q => q.key === key) + 1}
+                                                        </span>
+                                                        <p className="text-sm font-medium text-[#1a1a1a] mb-3 leading-snug">
+                                                            {question.question}
+                                                        </p>
+                                                        <textarea
+                                                            value={savedAnswers[key] || ""}
+                                                            onChange={(e) => {
+                                                                setSavedAnswers(prev => ({ ...prev, [key]: e.target.value }));
+                                                                onSaveAnswer?.(key, e.target.value);
+                                                            }}
+                                                            placeholder="Type your answer..."
+                                                            className="w-full p-3 text-sm font-sans bg-[#f5f5f5] rounded-lg border-0 resize-none focus:outline-none focus:ring-2 focus:ring-black/10 scrollbar-none"
+                                                            rows={3}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                </div>
+
+                                {/* Mobile Layout */}
+                                <div className="lg:hidden max-w-2xl mx-auto">
+                                    {/* Passage */}
+                                    <div className="font-serif text-base leading-relaxed text-[#1a1a1a] mb-8">
+                                        {sentences.map((sentence, index) => {
+                                            const questionForSentence = whileReadingQuestions.find(
+                                                ({ question }) => question["sentence-number"] === index + 1
+                                            );
+
+                                            return (
+                                                <span key={index}>
+                                                    {sentence.startsNewParagraph && <span className="block h-4" />}
+                                                    <span className="">
+                                                        {highlightSearch(sentence.text, searchQuery)}{" "}
+                                                    </span>
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Question Cards */}
+                                    <div className="space-y-4">
+                                        <h2 className="text-sm font-semibold text-[#888] uppercase tracking-wider mb-4">
+                                            Questions
+                                        </h2>
+                                        {whileReadingQuestions.map(({ key, question }, index) => (
+                                            <div
+                                                key={key}
+                                                className="bg-white rounded-xl border border-black/10 p-4 shadow-sm"
+                                            >
+                                                <span className="text-xs font-semibold text-[#888] uppercase tracking-wider block mb-2">
+                                                    Question {index + 1}
+                                                </span>
+                                                <p className="text-sm font-medium text-[#1a1a1a] mb-3 leading-snug">
+                                                    {question.question}
+                                                </p>
+                                                <textarea
+                                                    value={savedAnswers[key] || ""}
+                                                    onChange={(e) => {
+                                                        setSavedAnswers(prev => ({ ...prev, [key]: e.target.value }));
+                                                        onSaveAnswer?.(key, e.target.value);
+                                                    }}
+                                                    placeholder="Type your answer..."
+                                                    className="w-full p-3 text-sm font-sans bg-[#f5f5f5] rounded-lg border-0 resize-none focus:outline-none focus:ring-2 focus:ring-black/10 scrollbar-none"
+                                                    rows={3}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Finish Button */}
+                                <div className="flex justify-center mt-12 relative">
+                                    <AnimatePresence>
+                                        {showValidationError && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10, x: "-50%" }}
+                                                animate={{ opacity: 1, y: 0, x: "-50%" }}
+                                                exit={{ opacity: 0, y: 10, x: "-50%" }}
+                                                className="absolute bottom-full mb-3 left-1/2 whitespace-nowrap text-red-500 text-sm font-medium bg-red-50 px-4 py-2 rounded-full border border-red-100 shadow-lg z-50"
+                                            >
+                                                Please answer all questions before finishing.
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => {
+                                            if (!allQuestionsAnswered()) {
+                                                setShowValidationError(true);
+                                                setTimeout(() => setShowValidationError(false), 3000);
+                                            } else {
+                                                onFinish?.(savedAnswers);
+                                            }
+                                        }}
+                                        className="px-8 py-3 bg-[#1a1a1a] text-white rounded-full font-medium text-sm transition-all shadow-lg cursor-pointer"
+                                    >
+                                        Finish Reading
+                                    </motion.button>
+                                </div>
+                            </>
+                        ) : (
+                            /* Read Only Full View */
+                            <>
+                                <div className="max-w-[700px] mx-auto font-serif text-lg leading-relaxed text-[#1a1a1a]">
+                                    {sentences.map((sentence, index) => (
+                                        <span key={index}>
+                                            {sentence.startsNewParagraph && <span className="block h-5" />}
+                                            {highlightSearch(sentence.text, searchQuery)}{" "}
+                                        </span>
+                                    ))}
+                                </div>
+                                {/* Finish Button for read-only */}
+                                <div className="flex justify-center mt-12">
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => readOnlyMode ? onBack?.() : onFinish?.(savedAnswers)}
+                                        className="px-8 py-3 bg-[#1a1a1a] text-white rounded-full font-medium text-sm transition-all shadow-lg cursor-pointer"
+                                    >
+                                        Finish Reading
+                                    </motion.button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                /* Normal Scroll Mode */
+                <>
+                    {/* Content */}
+                    <div
+                        ref={contentRef}
+                        className="absolute left-1/2 z-10 -translate-x-1/2 transition-[top] duration-400 ease-out font-serif font-medium w-[clamp(300px,55vw,1000px)] text-[clamp(20px,2.2vw,34px)] leading-[1.7]"
+                        style={{
+                            top: topPosition !== null ? `${topPosition}px` : "50%",
                         }}
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#999999ff]">
-                            <path d="M12 5v14M19 12l-7 7-7-7" />
-                        </svg>
-                    </motion.div>
-                </div>
-            </div>
+                        <p>
+                            {visibleSentences.map((sentence, i) => {
+                                const distanceFromCurrent = currentIndex - i;
+                                const colorClass = getColorClass(distanceFromCurrent);
+                                const isCurrentSentence = i === currentIndex;
+                                const isFadingOut = i === fadingOutIndex;
+                                const shouldAnimateIn = isCurrentSentence && isAdvancing;
+
+                                if (isFadingOut) {
+                                    return renderSentence(sentence, i, "text-[#1c1c1c]", "animate-letter-hide");
+                                }
+
+                                if (shouldAnimateIn) {
+                                    return renderSentence(sentence, i, colorClass, "animate-letter-reveal");
+                                }
+
+                                return renderSentence(sentence, i, colorClass);
+                            })}
+                        </p>
+                    </div>
+
+                    {/* Question Tooltip */}
+                    <AnimatePresence>
+                        {activeQuestion && (
+                            <QuestionTooltip
+                                question={activeQuestion.question.question}
+                                side={activeQuestion.side}
+                                anchorY={tooltipY}
+                                initialAnswer={draftAnswers[activeQuestion.key] || savedAnswers[activeQuestion.key] || ""}
+                                onSubmit={handleSubmitAnswer}
+                                onDraftChange={(draft) => setDraftAnswers(prev => ({ ...prev, [activeQuestion.key]: draft }))}
+                            />
+                        )}
+                    </AnimatePresence>
+
+                    {/* Scroll Helper */}
+                    <div
+                        className={`fixed left-1/2 -translate-x-1/2 bottom-[15vh] transition-opacity duration-700 pointer-events-none ${currentIndex < 3 && !activeQuestion ? "opacity-60" : "opacity-0"}`}
+                    >
+                        <div className="flex flex-col items-center gap-2">
+                            <span className="text-[10px] tracking-[0.2em] uppercase text-[#999999ff] font-medium">Scroll To Keep Reading</span>
+                            <motion.div
+                                animate={{ y: [0, 6, 0] }}
+                                transition={{
+                                    repeat: Infinity,
+                                    duration: 2,
+                                    ease: "easeInOut"
+                                }}
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#999999ff]">
+                                    <path d="M12 5v14M19 12l-7 7-7-7" />
+                                </svg>
+                            </motion.div>
+                        </div>
+                    </div>
+                </>
+            )}
 
             {/* Progress Indicator */}
-            <ProgressIndicator
-                currentIndex={currentIndex}
-                totalSentences={sentences.length}
-                isFinished={currentIndex === sentences.length - 1 && !activeQuestion}
-                onFinish={() => onFinish?.(savedAnswers)}
-            />
+            {!fullViewMode && (
+                <ProgressIndicator
+                    currentIndex={currentIndex}
+                    totalSentences={sentences.length}
+                    isFinished={currentIndex === sentences.length - 1 && !activeQuestion}
+                    onFinish={() => {
+                        if (!readOnlyMode && !allQuestionsAnswered()) {
+                            setShowValidationError(true);
+                            setTimeout(() => setShowValidationError(false), 3000);
+                        } else {
+                            if (readOnlyMode) {
+                                onBack?.();
+                            } else {
+                                onFinish?.(savedAnswers);
+                            }
+                        }
+                    }}
+                />
+            )}
+
+            {/* Validation*/}
+            {!fullViewMode && (
+                <AnimatePresence>
+                    {showValidationError && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20, x: "-50%" }}
+                            animate={{ opacity: 1, y: 0, x: "-50%" }}
+                            exit={{ opacity: 0, y: 20, x: "-50%" }}
+                            className="fixed bottom-[14vh] left-1/2 z-50 text-red-500 text-sm font-medium bg-red-50 px-4 py-2 rounded-full border border-red-100 shadow-lg"
+                        >
+                            Please answer all questions before finishing.
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            )}
         </div>
     );
 }
