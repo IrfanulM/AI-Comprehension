@@ -60,6 +60,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
     const lastScrollTime = useRef(0);
     const lastEventTimestamp = useRef(0);
     const wheelDeltas = useRef<number[]>([]);
+    const questionPending = useRef(false);
 
     const sentences = (() => {
         const content = passage.content;
@@ -112,18 +113,30 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         }
     }, []);
 
+    const hasQuestionAtSentence = useCallback((sentenceIndex: number) => {
+        if (readOnlyMode) return false;
+        const sentenceNumber = sentenceIndex + 1;
+        for (const [key, q] of Object.entries(questions)) {
+            if (q.type === "while-reading" && q["sentence-number"] === sentenceNumber && !answeredInSession.has(key)) {
+                return true;
+            }
+        }
+        return false;
+    }, [questions, readOnlyMode, answeredInSession]);
+
     const checkForQuestion = useCallback((sentenceIndex: number) => {
         const sentenceNumber = sentenceIndex + 1;
         let questionIndex = 0;
         for (const [key, q] of Object.entries(questions)) {
-            // Only check while-reading questions (skip if in read-only mode)
             if (!readOnlyMode && q.type === "while-reading" && q["sentence-number"] === sentenceNumber && !answeredInSession.has(key)) {
                 const side = questionIndex % 2 === 0 ? "right" : "left";
                 setActiveQuestion({ key, question: q, side });
+                questionPending.current = false;
                 return true;
             }
             if (q.type === "while-reading") questionIndex++;
         }
+        questionPending.current = false;
         return false;
     }, [questions, readOnlyMode, answeredInSession, updateTooltipPosition]);
 
@@ -137,7 +150,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
     };
 
     const advance = useCallback(() => {
-        if (activeQuestion || scrollCooldown.current) return;
+        if (activeQuestion || scrollCooldown.current || questionPending.current) return;
         
         const nextIndex = currentIndex + 1;
         if (nextIndex >= sentences.length) return;
@@ -145,17 +158,30 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         scrollCooldown.current = true;
         setIsAdvancing(true);
         setFadingOutIndex(null);
-
-        const hasQuestion = checkForQuestion(nextIndex);
+        setCurrentIndex(nextIndex);
         
-        if (!hasQuestion) {
-            setCurrentIndex(nextIndex);
+        const hasQuestion = !readOnlyMode && hasQuestionAtSentence(nextIndex);
+        
+        if (hasQuestion) {
+            questionPending.current = true;
         }
+        
+        setTimeout(() => {
+            checkForQuestion(nextIndex);
+        }, 350);
 
         setTimeout(() => {
-            scrollCooldown.current = false;
+            if (!hasQuestion) {
+                scrollCooldown.current = false;
+            }
         }, 50);
-    }, [currentIndex, activeQuestion, checkForQuestion, sentences.length]);
+        
+        if (hasQuestion) {
+            setTimeout(() => {
+                scrollCooldown.current = false;
+            }, 400);
+        }
+    }, [currentIndex, activeQuestion, checkForQuestion, hasQuestionAtSentence, sentences.length, readOnlyMode]);
 
     const retreat = useCallback(() => {
         if (currentIndex === 0 || scrollCooldown.current) return;

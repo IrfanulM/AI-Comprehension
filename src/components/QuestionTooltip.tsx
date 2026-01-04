@@ -107,18 +107,17 @@ export default function QuestionTooltip({
     const tooltipContent = (
         <motion.div
             ref={containerRef}
-            initial={{ opacity: 0, scale: 0.9, y: isMobile ? 10 : 0 }}
+            initial={{ opacity: 0, scale: 0.9 }}
             animate={{ 
-                opacity: 1, 
-                scale: 1, 
-                y: 0 
+                opacity: clampedX !== null ? 1 : 0, 
+                scale: clampedX !== null ? 1 : 0.9
             }}
-            exit={{ opacity: 0, scale: 0.9, y: isMobile ? 10 : 0 }}
+            exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             className={`fixed z-50 ${isMobile ? "left-1/2 -translate-x-1/2 top-[12vh]" : ""} flex flex-col pointer-events-none`}
             style={isMobile ? undefined : {
                 top: clampedY,
-                left: clampedX !== null ? clampedX : undefined
+                left: clampedX !== null ? clampedX : -9999
             }}
         >
             <div className="relative bg-white rounded-2xl shadow-xl border border-black/10 p-5 md:p-6 w-[calc(100vw-32px)] md:w-[clamp(260px,22vw,320px)] max-h-[75vh] flex flex-col pointer-events-auto">
