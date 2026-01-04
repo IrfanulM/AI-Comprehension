@@ -79,10 +79,12 @@ CRITICAL FOR WHILE-READING QUESTIONS:
 - Only grade based on what they could have known at that point in the text
 
 CRITICAL FOR SUMMARY QUESTIONS:
-- To get a 10/10, the student MUST fix only the specific phrases listed as INCORRECT. 
-- Any phrase NOT explicitly listed as INCORRECT in the prompt below is CORRECT by definition. NEVER penalize the student for anything not in the list.
-- DO NOT use your own knowledge to find "new" errors. If the student fixed the listed items, give a 10.
-- Avoid deleting or changing information that wasn't in the error list. Maintain the original summary where possible.
+- The student was given a list of INCORRECT phrases they must fix
+- To get a 10/10, the student MUST fix ALL the listed errors, not just some of them
+- If they fixed 2 out of 3 errors, that's 7-8/10. If they fixed 1 out of 2 errors, that's 5-6/10
+- Check EACH error in the list - was it corrected? Count how many they fixed vs how many were listed
+- Any phrase NOT in the error list is CORRECT - never penalize for those
+- DO NOT give 10 unless EVERY error has been addressed
 
 RESPOND WITH JSON using the EXACT keys provided for each question.`;
 

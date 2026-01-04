@@ -315,11 +315,19 @@ export default function Home() {
             <Results
                 passageTitle={selectedPassage.title}
                 passageContent={selectedPassage.content}
+                passageId={selectedPassage.id}
                 savedAnswers={savedAnswers}
                 correctedSummary={correctedSummary}
                 questions={questions}
                 checks={checks}
                 onBack={handleBackToMenu}
+                onRetryUpdate={(newChecks, newAnswers, newSummary) => {
+                    setChecks(newChecks);
+                    setSavedAnswers(newAnswers);
+                    setCorrectedSummary(newSummary);
+                    cacheResults(selectedPassage.id, newChecks, newAnswers, newSummary);
+                }}
+                grade={selectedGrade}
             />
         );
     }
