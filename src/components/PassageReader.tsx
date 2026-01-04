@@ -58,7 +58,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
     const fullViewPassageRef = useRef<HTMLDivElement>(null);
     const fullViewSentenceRefs = useRef<Map<number, HTMLSpanElement>>(new Map());
     const lastScrollTime = useRef(0);
-    const lastDeltas = useRef<number[]>([]);
+    const isTrackpad = useRef(false);
 
     const sentences = (() => {
         const content = passage.content;
@@ -261,17 +261,18 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
             const now = Date.now();
             const timeSinceLast = now - lastScrollTime.current;
 
-            // Trackpad momentum protection
-            lastDeltas.current.push(currentDelta);
-            if (lastDeltas.current.length > 3) lastDeltas.current.shift();
-            
-            const isSlowingDown = lastDeltas.current.length >= 2 && 
-                                 lastDeltas.current[lastDeltas.current.length - 1] < lastDeltas.current[lastDeltas.current.length - 2];
+            if (timeSinceLast < 30) {
+                isTrackpad.current = true;
+            } else if (timeSinceLast > 1000) {
+                isTrackpad.current = false;
+            }
 
-            if (isSlowingDown && timeSinceLast < 500) return;
+            const cooldown = isTrackpad.current ? 400 : 80;
 
-            // Mouse wheel
-            if (timeSinceLast < 50) return;
+            if (timeSinceLast < cooldown) {
+                e.preventDefault();
+                return;
+            }
 
             e.preventDefault();
             if (e.deltaY > 0) {
