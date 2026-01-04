@@ -422,7 +422,10 @@ function ResultCard({
                 }),
             });
 
-            if (!response.ok) throw new Error("Failed to evaluate");
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to evaluate");
+            }
 
             const data = await response.json();
             onRetryComplete(questionKey, data.rating, data.explanation, editedAnswer);
@@ -603,7 +606,10 @@ function SummaryResultCard({
                 }),
             });
 
-            if (!response.ok) throw new Error("Failed to evaluate");
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to evaluate");
+            }
 
             const data = await response.json();
             onRetryComplete("summary", data.rating, data.explanation, editedSummary);

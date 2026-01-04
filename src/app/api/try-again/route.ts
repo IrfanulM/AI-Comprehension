@@ -130,11 +130,13 @@ Did the student apply the feedback properly?`;
             rating: result["answer-rating"],
             explanation: result.explanation
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error in try-again:", error);
+        const status = error.status || 500;
+        const message = error.message || "Failed to evaluate retry";
         return NextResponse.json(
-            { error: "Failed to evaluate retry" },
-            { status: 500 }
+            { error: message },
+            { status }
         );
     }
 }

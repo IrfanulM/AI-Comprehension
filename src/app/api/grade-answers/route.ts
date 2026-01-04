@@ -141,11 +141,13 @@ Grade each response. Use the exact "Key" values as the JSON keys in your respons
         const results = JSON.parse(responseText);
 
         return NextResponse.json({ results });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error grading answers:", error);
+        const status = error.status || 500;
+        const message = error.message || "Failed to grade answers";
         return NextResponse.json(
-            { error: "Failed to grade answers" },
-            { status: 500 }
+            { error: message },
+            { status }
         );
     }
 }

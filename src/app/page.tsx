@@ -162,7 +162,8 @@ export default function Home() {
             }, API_TIMEOUT_MS);
 
             if (!response.ok) {
-                throw new Error("Failed to generate questions");
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to generate questions");
             }
 
             const data = await response.json();
@@ -220,7 +221,8 @@ export default function Home() {
             }, API_TIMEOUT_MS);
 
             if (!response.ok) {
-                throw new Error("Failed to grade answers");
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to grade answers");
             }
 
             const data = await response.json();

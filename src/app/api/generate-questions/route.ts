@@ -118,11 +118,13 @@ Generate questions following the rules exactly. Respond with valid JSON only.`;
         const questions = JSON.parse(responseText);
 
         return NextResponse.json({ questions });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error generating questions:", error);
+        const status = error.status || 500;
+        const message = error.message || "Failed to generate questions";
         return NextResponse.json(
-            { error: "Failed to generate questions" },
-            { status: 500 }
+            { error: message },
+            { status }
         );
     }
 }
