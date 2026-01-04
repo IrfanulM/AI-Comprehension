@@ -31,7 +31,7 @@ export default function PostReading({
     return (
         <div className="relative h-screen w-screen overflow-hidden bg-white flex flex-col">
             {/* Title */}
-            <h1 className="absolute left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-[4vh]">
+            <h1 className="fixed left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-8 md:top-[4vh]">
                 {passageTitle}
             </h1>
 

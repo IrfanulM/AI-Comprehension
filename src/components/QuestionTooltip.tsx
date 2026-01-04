@@ -104,23 +104,26 @@ export default function QuestionTooltip({
         }
     };
 
+    // On mobile, we don't need clampedX since we use CSS positioning
+    const isReady = isMobile || clampedX !== null;
+
     const tooltipContent = (
         <motion.div
             ref={containerRef}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ 
-                opacity: clampedX !== null ? 1 : 0, 
-                scale: clampedX !== null ? 1 : 0.9
+                opacity: isReady ? 1 : 0, 
+                scale: isReady ? 1 : 0.9
             }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className={`fixed z-50 ${isMobile ? "left-1/2 -translate-x-1/2 top-[12vh]" : ""} flex flex-col pointer-events-none`}
+            className={`fixed z-50 ${isMobile ? "left-4 right-4 top-20" : ""} flex flex-col pointer-events-none`}
             style={isMobile ? undefined : {
                 top: clampedY,
                 left: clampedX !== null ? clampedX : -9999
             }}
         >
-            <div className="relative bg-white rounded-2xl shadow-xl border border-black/10 p-5 md:p-6 w-[calc(100vw-32px)] md:w-[clamp(260px,22vw,320px)] max-h-[75vh] flex flex-col pointer-events-auto">
+            <div className="relative bg-white rounded-2xl shadow-xl border border-black/10 p-5 md:p-6 w-full md:w-[clamp(260px,22vw,320px)] max-h-[75vh] flex flex-col pointer-events-auto">
                 {isMobile && (
                     <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-black/10 rotate-45 border-r border-b" />
                 )}
@@ -150,7 +153,7 @@ export default function QuestionTooltip({
                     onChange={(e) => handleAnswerChange(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Type your answer..."
-                    className="w-full h-24 px-3 py-2 text-sm border border-black/10 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-black/10 placeholder:text-[#aaa] scrollbar-none"
+                    className="w-full h-24 px-3 py-2 text-base md:text-sm border border-black/10 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-black/10 placeholder:text-[#aaa] scrollbar-none"
                     maxLength={1000}
                 />
 

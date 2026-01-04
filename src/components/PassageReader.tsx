@@ -61,6 +61,11 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
     const lastEventTimestamp = useRef(0);
     const wheelDeltas = useRef<number[]>([]);
     const questionPending = useRef(false);
+    
+    // Touch gesture refs
+    const touchStartY = useRef<number | null>(null);
+    const touchStartTime = useRef<number>(0);
+    const isTouchActive = useRef(false);
 
     const sentences = (() => {
         const content = passage.content;
@@ -223,9 +228,12 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                 contentHeight = contentRef.current.offsetHeight;
             }
 
-            const viewportHeight = window.innerHeight;
+            const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+            const isMobile = window.innerWidth < 768;
+            
             const centeredTop = (viewportHeight - contentHeight) / 2;
-            const bottomAnchoredTop = viewportHeight * 0.8 - contentHeight;
+            const bottomAnchorPercent = isMobile ? 0.8 : 0.80;
+            const bottomAnchoredTop = viewportHeight * bottomAnchorPercent - contentHeight;
             setTopPosition(Math.min(bottomAnchoredTop, centeredTop));
         }
     }, [currentIndex, fadingOutIndex]);
@@ -330,12 +338,65 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
             }
         };
 
+        // Touch gesture handlers for mobile
+        const handleTouchStart = (e: TouchEvent) => {
+            if (fullViewMode) return;
+            
+            const touch = e.touches[0];
+            touchStartY.current = touch.clientY;
+            touchStartTime.current = Date.now();
+            isTouchActive.current = true;
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            if (fullViewMode) return;
+            if (!isTouchActive.current || touchStartY.current === null) return;
+            
+            // Prevent default scrolling in normal view mode
+            e.preventDefault();
+        };
+
+        const handleTouchEnd = (e: TouchEvent) => {
+            if (fullViewMode) return;
+            if (!isTouchActive.current || touchStartY.current === null) return;
+            
+            const touch = e.changedTouches[0];
+            const deltaY = touch.clientY - touchStartY.current;
+            const timeDelta = Date.now() - touchStartTime.current;
+            
+            // Reset touch state
+            touchStartY.current = null;
+            isTouchActive.current = false;
+            
+            // Minimum swipe threshold (30px) and max time (300ms) for a quick swipe
+            const minSwipeDistance = 30;
+            const maxSwipeTime = 300;
+            
+            if (Math.abs(deltaY) < minSwipeDistance) return;
+            if (timeDelta > maxSwipeTime) return;
+            
+            if (deltaY < 0) {
+                // Swiped up (finger moved up) = advance to next sentence
+                if (activeQuestion) return;
+                advance();
+            } else {
+                // Swiped down (finger moved down) = retreat to previous sentence
+                retreat();
+            }
+        };
+
         window.addEventListener("keydown", handleKeyDown);
         window.addEventListener("wheel", handleWheel, { passive: false });
+        window.addEventListener("touchstart", handleTouchStart, { passive: true });
+        window.addEventListener("touchmove", handleTouchMove, { passive: false });
+        window.addEventListener("touchend", handleTouchEnd, { passive: true });
 
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener("wheel", handleWheel);
+            window.removeEventListener("touchstart", handleTouchStart);
+            window.removeEventListener("touchmove", handleTouchMove);
+            window.removeEventListener("touchend", handleTouchEnd);
         };
     }, [activeQuestion, advance, retreat, fullViewMode]);
 
@@ -412,7 +473,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         <div className="relative h-screen w-screen overflow-hidden bg-white">
             {/* Title */}
             {!fullViewMode && (
-                <h1 className="absolute left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-[4vh]">
+                <h1 className="fixed left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-8 md:top-[4vh]">
                     {passage.title}
                 </h1>
             )}
@@ -481,12 +542,12 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                 /* Full View Mode */
                 <div className="fixed inset-0 z-10 overflow-y-auto bg-white">
                     {/* Title */}
-                    <h1 className="absolute left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-[4vh]">
+                    <h1 className="absolute md:fixed left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-8 md:top-[4vh]">
                         {passage.title}
                     </h1>
 
                     {/* Content */}
-                    <div className="pt-[12vh] px-4 pb-16">
+                    <div className="pt-30 md:pt-[12vh] px-4 pb-16">
                         {!readOnlyMode ? (
                             <>
                                 {/* Desktop Layout */}
@@ -520,7 +581,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                                                                 onSaveAnswer?.(key, e.target.value);
                                                             }}
                                                             placeholder="Type your answer..."
-                                                            className="w-full p-3 text-sm font-sans bg-[#f5f5f5] rounded-lg border-0 resize-none focus:outline-none focus:ring-2 focus:ring-black/10 scrollbar-none"
+                                                            className="w-full p-3 text-base md:text-sm font-sans bg-[#f5f5f5] rounded-lg border-0 resize-none focus:outline-none focus:ring-2 focus:ring-black/10 scrollbar-none"
                                                             rows={3}
                                                             maxLength={1000}
                                                         />
@@ -580,7 +641,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                                                                 onSaveAnswer?.(key, e.target.value);
                                                             }}
                                                             placeholder="Type your answer..."
-                                                            className="w-full p-3 text-sm font-sans bg-[#f5f5f5] rounded-lg border-0 resize-none focus:outline-none focus:ring-2 focus:ring-black/10 scrollbar-none"
+                                                            className="w-full p-3 text-base md:text-sm font-sans bg-[#f5f5f5] rounded-lg border-0 resize-none focus:outline-none focus:ring-2 focus:ring-black/10 scrollbar-none"
                                                             rows={3}
                                                             maxLength={500}
                                                         />
@@ -635,7 +696,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                                                         onSaveAnswer?.(key, e.target.value);
                                                     }}
                                                     placeholder="Type your answer..."
-                                                    className="w-full p-3 text-sm font-sans bg-[#f5f5f5] rounded-lg border-0 resize-none focus:outline-none focus:ring-2 focus:ring-black/10 scrollbar-none"
+                                                    className="w-full p-3 text-base md:text-sm font-sans bg-[#f5f5f5] rounded-lg border-0 resize-none focus:outline-none focus:ring-2 focus:ring-black/10 scrollbar-none"
                                                     rows={3}
                                                     maxLength={500}
                                                 />
@@ -747,12 +808,15 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                         )}
                     </AnimatePresence>
 
-                    {/* Scroll Helper */}
+                    {/* Scroll/Swipe Helper */}
                     <div
                         className={`fixed left-1/2 -translate-x-1/2 bottom-[15vh] transition-opacity duration-700 pointer-events-none ${currentIndex < 3 && !activeQuestion ? "opacity-60" : "opacity-0"}`}
                     >
                         <div className="flex flex-col items-center gap-2">
-                            <span className="text-[10px] tracking-[0.2em] uppercase text-[#999999ff] font-medium">Scroll To Keep Reading</span>
+                            {/* Desktop text */}
+                            <span className="hidden sm:block text-[10px] tracking-[0.2em] uppercase text-[#999999ff] font-medium">Scroll To Keep Reading</span>
+                            {/* Mobile text */}
+                            <span className="block sm:hidden text-[10px] tracking-[0.2em] uppercase text-[#999999ff] font-medium">Swipe Up To Keep Reading</span>
                             <motion.div
                                 animate={{ y: [0, 6, 0] }}
                                 transition={{

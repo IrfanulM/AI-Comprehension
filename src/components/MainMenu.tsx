@@ -58,7 +58,7 @@ export default function MainMenu({ passages, onSelect, onViewResults }: MainMenu
     };
 
     return (
-        <div className="min-h-screen w-full bg-[#f8f9fa] flex flex-col items-center justify-center p-8">
+        <div className="min-h-screen w-full bg-[#f8f9fa] flex flex-col items-center justify-center p-8 pt-10 md:pt-8">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

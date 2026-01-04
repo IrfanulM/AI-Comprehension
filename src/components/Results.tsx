@@ -157,7 +157,7 @@ export default function Results({
     return (
         <div className="fixed inset-0 overflow-y-auto bg-white">
             {/* Title */}
-            <h1 className="absolute left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-[4vh]">
+            <h1 className="absolute md:fixed left-1/2 z-30 -translate-x-1/2 text-center font-serif font-bold tracking-tight text-[#1a1a1a] text-[clamp(24px,2.5vw,36px)] top-8 md:top-[4vh]">
                 {passageTitle}
             </h1>
 
@@ -172,7 +172,7 @@ export default function Results({
             </button>
 
             {/* Desktop: Three Column Layout, Mobile: Single Column */}
-            <div className="pt-[12vh] px-4 pb-8">
+            <div className="pt-30 md:pt-[12vh] px-4 pb-8">
                 {/* Desktop Layout (hidden on mobile) */}
                 <div className="hidden lg:grid grid-cols-[1fr_minmax(500px,700px)_1fr] gap-6 max-w-[1400px] mx-auto">
                     {/* Left Column */}
@@ -505,7 +505,7 @@ function ResultCard({
                             <textarea
                                 value={editedAnswer}
                                 onChange={(e) => setEditedAnswer(e.target.value)}
-                                className="w-full mt-1 p-2 text-xs text-[#555] leading-relaxed border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 resize-none"
+                                className="w-full mt-1 p-2 text-base md:text-xs text-[#555] leading-relaxed border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 resize-none"
                                 rows={3}
                                 maxLength={1000}
                                 autoFocus
@@ -677,7 +677,7 @@ function SummaryResultCard({
                                 <textarea
                                     value={editedSummary}
                                     onChange={(e) => setEditedSummary(e.target.value)}
-                                    className="w-full mt-2 p-4 text-sm text-[#1a1a1a] leading-relaxed bg-[#f5f5f5] border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 resize-none"
+                                    className="w-full mt-2 p-4 text-base md:text-sm text-[#1a1a1a] leading-relaxed bg-[#f5f5f5] border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 resize-none"
                                     rows={5}
                                     maxLength={1000}
                                     autoFocus
