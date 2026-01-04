@@ -55,17 +55,19 @@ WHILE-READING QUESTIONS:
 - ALWAYS end questions with a question mark (?)
 
 POST-READING SUMMARY TASK:
-Write a summary with 1-3 subtle errors that require understanding to catch. NOT simple fact-checking.
+Write a summary with 1-3 subtle errors that test COMPREHENSION, not recall.
 
 1. Write a summary of the passage (300-500 characters)
-2. Include 1-3 errors that are LOGICAL INCONSISTENCIES:
-   - Contradict relationships between concepts
+2. Include 1-3 errors that are COMPREHENSION-BASED:
    - Reverse cause and effect
-   - Misrepresent a process or reasoning explained in the text
-   - State something that conflicts with the overall logic
-3. For the errors object: Copy the phrase from YOUR SUMMARY that contains the error, EXACTLY as written
+   - Misattribute an action to the wrong agent
+   - Invert a relationship mentioned in the text
+3. DO NOT include vague statements or things not discussed in the passage.
+4. ONLY list statements you deliberately made WRONG in the errors object. If a statement in your summary is accurate, do NOT list it as an error.
+5. CRITICAL: Match the error count exactly - if you made 2 wrong statements, list 2 errors.
+6. For the errors object: Each error MUST be an EXACT character-for-character copy of a phrase that appears in your summary. Do NOT list phrases that are not in the summary.
+7. Something that is technically true but not exactly mentioned in the text is NOT an error (eg. if the text mentions "80 years" yet the summary says "over 50 years", that is NOT an error).
 
-The errors should NOT be simple "find the wrong word" - they should require the reader to understand the passage's logic to spot.
 
 RESPOND ONLY WITH THIS EXACT JSON STRUCTURE:
 {
@@ -77,9 +79,11 @@ RESPOND ONLY WITH THIS EXACT JSON STRUCTURE:
   ... (${questionCount} while-reading questions total)
   "question${questionCount + 1}": {
     "type": "post-reading",
-    "summary": "<300-500 char summary with 0-3 CHANGED facts>",
+    "summary": "<300-500 char summary with 1-3 CHANGED facts>",
     "errors": {
-      "error1": "<exact wrong phrase from summary>"
+      "error1": "<exact wrong phrase from summary>",
+      "error2": "<exact wrong phrase from summary ONLY if there actually is a second error>",
+      "error3": "<exact wrong phrase from summary ONLY if there actually is a third error>"
     }
   }
 }`;
