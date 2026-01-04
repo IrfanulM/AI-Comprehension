@@ -39,8 +39,8 @@ CRITICAL: All questions and language MUST be appropriate for Grade ${studentGrad
 
 WHILE-READING QUESTIONS:
 - Each specifies a sentence-number where it appears (the "Stop Point")
-- Tests comprehension of ALL text UP TO that sentence (student has NOT read anything after)
-- STRICTLY FORBIDDEN: referencing concepts, events, or definitions that appear after the Stop Point
+- Tests comprehension of ALL text UP TO that sentence ONLY (student has NOT read anything after, so for example if sentence 5 is the stop point and "Firetrucks" start being mentioned on sentence 6 do not ask about firetrucks.)
+- STRICTLY FORBIDDEN: referencing concepts, events, or definitions that appear AFTER the Stop Point.
 - **THE HIGHLIGHTER TEST:** If the answer to the question is explicitly printed in a single sentence, REJECT the question. The student must not be able to just "find" the answer; they must "construct" it.
 - NO recall questions ("What is X?", "Where is Y?", "How many?")
 - REQUIRE: Synthesis, inference, cause-and-effect, evaluation, deep reasoning

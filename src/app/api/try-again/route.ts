@@ -16,7 +16,8 @@ export async function POST(request: NextRequest) {
             originalFeedback,
             grade,
             originalSummary,
-            errors
+            errors,
+            passageContent
         } = await request.json();
         
         const studentGrade = grade || 10;
@@ -39,20 +40,18 @@ const errorsText = errorsList.length > 0
     ? `The errors that needed fixing were: ${errorsList.join(", ")}`
     : "";
 
-systemPrompt = `You are evaluating if a Grade ${studentGrade} student fixed errors in a summary.
+systemPrompt = `You WANT to give this student 10/10. Your job is to find a reason to give them a perfect score.
 
+The student was asked to fix these errors in their summary:
 ${errorsText}
 
-YOUR ONLY JOB: Check if the NEW answer no longer contains the errors. That's it.
+Give 10/10 if:
+- They removed or changed the parts that were wrong, OR
+- Their summary is now accurate compared to the passage
 
-CRITICAL RULES:
-- If an error said "X is wrong" and the new answer doesn't say X anymore, THAT ERROR IS FIXED
-- If they rephrased/removed/corrected the problematic content, THAT COUNTS AS FIXED
-- Give 10/10 if ALL the listed errors have been addressed (removed, corrected, or rephrased)
-- Give partial credit (7-9) only if some errors remain unfixed
-- DO NOT invent new issues
-- DO NOT be pedantic about wording, if they got the idea right, it's fixed
-- BE GENEROUS - assume they fixed it unless clearly wrong
+Only give less than 10 if the EXACT same wrong information is still there word-for-word or, if there are multiple errors they were given and they only fixed some instead of all.
+
+DO NOT find new problems. DO NOT be strict. The answer is almost always 10/10.
 
 RESPOND WITH JSON:
 {
@@ -60,16 +59,20 @@ RESPOND WITH JSON:
   "explanation": "<max 300 chars, acknowledge what they fixed>"
 }`;
 
-userPrompt = `ORIGINAL ANSWER:
+
+userPrompt = `ORIGINAL PASSAGE:
+${passageContent || "(Not provided)"}
+
+ORIGINAL SUMMARY (with errors):
 ${originalAnswer}
 
 ORIGINAL RATING: ${originalRating}/10
 ORIGINAL FEEDBACK: ${originalFeedback}
 
-NEW ANSWER (after reading feedback):
+NEW SUMMARY (student's attempt to fix):
 ${editedAnswer}
 
-Did the student apply the feedback properly?`;
+Did the student fix the errors OR is the summary now accurate?`;
 
 } else { // While-reading question retry
 systemPrompt = `You are evaluating if a Grade ${studentGrade} student applied feedback to improve their answer.
@@ -110,7 +113,7 @@ Did the student apply the feedback properly?`;
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt },
             ],
-            temperature: 0.3,
+            temperature: 0.5,
             response_format: { type: "json_object" },
         });
 

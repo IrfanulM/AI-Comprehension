@@ -346,6 +346,7 @@ export default function Results({
                         maxScore={maxScore}
                         percentageScore={percentageScore}
                         onBack={onBack}
+                        passageContent={passageContent}
                     />
                 )}
             </div>
@@ -574,6 +575,7 @@ function SummaryResultCard({
     maxScore,
     percentageScore,
     onBack,
+    passageContent,
 }: {
     questionKey: string;
     questions: QuestionsData;
@@ -587,6 +589,7 @@ function SummaryResultCard({
     maxScore: number;
     percentageScore: number;
     onBack: () => void;
+    passageContent: string;
 }) {
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -614,6 +617,7 @@ function SummaryResultCard({
                     grade,
                     originalSummary: questions[questionKey].summary,
                     errors: questions[questionKey].errors,
+                    passageContent,
                 }),
             });
 

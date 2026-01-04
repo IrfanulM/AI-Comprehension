@@ -84,7 +84,8 @@ CRITICAL FOR SUMMARY QUESTIONS:
 - If they fixed 2 out of 3 errors, that's 7-8/10. If they fixed 1 out of 2 errors, that's 5-6/10
 - Check EACH error in the list - was it corrected? Count how many they fixed vs how many were listed
 - Any phrase NOT in the error list is CORRECT - never penalize for those
-- DO NOT give 10 unless EVERY error has been addressed
+- DO NOT give 10 unless EVERY error has been addressed.
+- Give 0 if the student did not even ATTEMPT to fix any of the errors. Like the corrected summary is the exact same as the original summary.
 
 RESPOND WITH JSON using the EXACT keys provided for each question.`;
 
