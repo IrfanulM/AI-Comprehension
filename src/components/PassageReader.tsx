@@ -57,6 +57,8 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
     const currentSentenceRef = useRef<HTMLSpanElement>(null);
     const fullViewPassageRef = useRef<HTMLDivElement>(null);
     const fullViewSentenceRefs = useRef<Map<number, HTMLSpanElement>>(new Map());
+    const lastScrollTime = useRef(0);
+    const lastDeltas = useRef<number[]>([]);
 
     const sentences = (() => {
         const content = passage.content;
@@ -109,7 +111,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         }
     }, []);
 
-    const checkForQuestion = (sentenceIndex: number) => {
+    const checkForQuestion = useCallback((sentenceIndex: number) => {
         const sentenceNumber = sentenceIndex + 1;
         let questionIndex = 0;
         for (const [key, q] of Object.entries(questions)) {
@@ -127,7 +129,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
             if (q.type === "while-reading") questionIndex++;
         }
         return false;
-    };
+    }, [questions, readOnlyMode, answeredInSession, updateTooltipPosition]);
 
     const handleSubmitAnswer = (answer: string) => {
         if (!activeQuestion) return;
@@ -138,7 +140,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         setActiveQuestion(null);
     };
 
-    const advance = () => {
+    const advance = useCallback(() => {
         if (scrollCooldown.current || activeQuestion) return;
         scrollCooldown.current = true;
         setIsAdvancing(true);
@@ -146,7 +148,9 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         
         const hasQuestion = checkForQuestion(currentIndex);
         if (hasQuestion) {
-            scrollCooldown.current = false;
+            setTimeout(() => {
+                scrollCooldown.current = false;
+            }, 300);
             return;
         }
         
@@ -155,9 +159,9 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         setTimeout(() => {
             scrollCooldown.current = false;
         }, 300);
-    };
+    }, [currentIndex, activeQuestion, checkForQuestion, sentences.length]);
 
-    const retreat = () => {
+    const retreat = useCallback(() => {
         if (scrollCooldown.current || currentIndex === 0) return;
 
         // If question is active, dismiss it when scrolling back
@@ -182,7 +186,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
         setTimeout(() => {
             setFadingOutIndex((current) => current === removingIndex ? null : current);
         }, totalDuration);
-    };
+    }, [currentIndex, activeQuestion, sentences]);
 
     useLayoutEffect(() => {
         if (contentRef.current) {
@@ -256,12 +260,34 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
 
         const handleWheel = (e: WheelEvent) => {
             if (fullViewMode) return;
+            
+            const currentDelta = Math.abs(e.deltaY);
+            if (currentDelta < 10) return;
+            
+            lastDeltas.current.push(currentDelta);
+            if (lastDeltas.current.length > 3) lastDeltas.current.shift();
+            
+            const now = Date.now();
+            const timeSinceLast = now - lastScrollTime.current;
+
+            if (timeSinceLast < 300) {
+                e.preventDefault();
+                return;
+            }
+
+            const isAccelerating = lastDeltas.current.length >= 2 && 
+                                  lastDeltas.current[lastDeltas.current.length - 1] > lastDeltas.current[lastDeltas.current.length - 2];
+            
+            if (!isAccelerating && timeSinceLast < 1000) return;
+
             e.preventDefault();
             if (e.deltaY > 0) {
-                if (activeQuestion) return; // Block forward when question active
+                if (activeQuestion) return;
+                lastScrollTime.current = now;
                 advance();
             } else if (e.deltaY < 0) {
-                retreat(); // Always allow backward
+                lastScrollTime.current = now;
+                retreat();
             }
         };
 
