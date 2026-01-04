@@ -461,7 +461,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                                                 return (
                                                     <div
                                                         key={key}
-                                                        className="absolute w-full bg-white rounded-xl border border-black/10 p-4 shadow-sm"
+                                                        className="absolute w-full bg-white rounded-xl border border-black/10 p-4 shadow-sm max-h-[400px] flex flex-col"
                                                         style={{ top: Math.max(0, yPos - 20) }}
                                                     >
                                                         {/* Arrow */}
@@ -469,9 +469,11 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                                                         <span className="text-xs font-semibold text-[#888] uppercase tracking-wider block mb-2">
                                                             Question {whileReadingQuestions.findIndex(q => q.key === key) + 1}
                                                         </span>
-                                                        <p className="text-sm font-medium text-[#1a1a1a] mb-3 leading-snug">
-                                                            {question.question}
-                                                        </p>
+                                                        <div className="overflow-y-auto scrollbar-none pr-1 mb-3">
+                                                            <p className="text-sm font-medium text-[#1a1a1a] leading-snug">
+                                                                {question.question}
+                                                            </p>
+                                                        </div>
                                                         <textarea
                                                             value={savedAnswers[key] || ""}
                                                             onChange={(e) => {
@@ -519,7 +521,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                                                 return (
                                                     <div
                                                         key={key}
-                                                        className="absolute w-full bg-white rounded-xl border border-black/10 p-4 shadow-sm"
+                                                        className="absolute w-full bg-white rounded-xl border border-black/10 p-4 shadow-sm max-h-[400px] flex flex-col"
                                                         style={{ top: Math.max(0, yPos - 20) }}
                                                     >
                                                         {/* Arrow */}
@@ -527,9 +529,11 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                                                         <span className="text-xs font-semibold text-[#888] uppercase tracking-wider block mb-2">
                                                             Question {whileReadingQuestions.findIndex(q => q.key === key) + 1}
                                                         </span>
-                                                        <p className="text-sm font-medium text-[#1a1a1a] mb-3 leading-snug">
-                                                            {question.question}
-                                                        </p>
+                                                        <div className="overflow-y-auto scrollbar-none pr-1 mb-3">
+                                                            <p className="text-sm font-medium text-[#1a1a1a] leading-snug">
+                                                                {question.question}
+                                                            </p>
+                                                        </div>
                                                         <textarea
                                                             value={savedAnswers[key] || ""}
                                                             onChange={(e) => {
@@ -575,14 +579,16 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
                                         {whileReadingQuestions.map(({ key, question }, index) => (
                                             <div
                                                 key={key}
-                                                className="bg-white rounded-xl border border-black/10 p-4 shadow-sm"
+                                                className="bg-white rounded-xl border border-black/10 p-4 shadow-sm max-h-[400px] flex flex-col"
                                             >
                                                 <span className="text-xs font-semibold text-[#888] uppercase tracking-wider block mb-2">
                                                     Question {index + 1}
                                                 </span>
-                                                <p className="text-sm font-medium text-[#1a1a1a] mb-3 leading-snug">
-                                                    {question.question}
-                                                </p>
+                                                <div className="overflow-y-auto scrollbar-none pr-1 mb-3">
+                                                    <p className="text-sm font-medium text-[#1a1a1a] leading-snug">
+                                                        {question.question}
+                                                    </p>
+                                                </div>
                                                 <textarea
                                                     value={savedAnswers[key] || ""}
                                                     onChange={(e) => {

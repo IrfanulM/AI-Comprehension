@@ -452,7 +452,7 @@ function ResultCard({
                 scale: { duration: 0.2, delay: 0 }
             }}
             style={isMobile ? {} : { top: Math.max(0, yPosition - 20), zIndex: isHovered ? 10 : 1 }}
-            className={`${isMobile ? "relative" : "absolute w-full"} bg-white rounded-xl border border-black/10 p-4 cursor-pointer transition-shadow duration-200 ${isHovered ? "shadow-lg" : "shadow-sm"}`}
+            className={`${isMobile ? "relative" : "absolute w-full"} bg-white rounded-xl border border-black/10 p-4 cursor-pointer transition-shadow duration-200 ${isHovered ? "shadow-lg" : "shadow-sm"} max-h-[500px] flex flex-col`}
             onMouseEnter={() => onHover(questionKey)}
             onMouseLeave={() => onHover(null)}
         >
@@ -480,10 +480,12 @@ function ResultCard({
                         </span>
                     </div>
 
-                    {/* Question */}
-                    <p className="text-sm font-medium text-[#1a1a1a] mb-2 leading-snug">
-                        {question}
-                    </p>
+                    {/* Scrollable Content Area */}
+                    <div className="overflow-y-auto scrollbar-none pr-1 flex-grow">
+                        {/* Question */}
+                        <p className="text-sm font-medium text-[#1a1a1a] mb-2 leading-snug">
+                            {question}
+                        </p>
 
                     {/* Your Answer */}
                     <div className="mb-2">
@@ -506,14 +508,15 @@ function ResultCard({
                         )}
                     </div>
 
-                    {/* Feedback */}
-                    <div className="mb-3">
-                        <span className="text-[10px] font-semibold text-[#aaa] uppercase tracking-wider">
-                            Feedback
-                        </span>
-                        <p className={`text-xs mt-0.5 leading-relaxed ${colors.text}`}>
-                            {explanation}
-                        </p>
+                        {/* Feedback */}
+                        <div className="mb-3">
+                            <span className="text-[10px] font-semibold text-[#aaa] uppercase tracking-wider">
+                                Feedback
+                            </span>
+                            <p className={`text-xs mt-0.5 leading-relaxed ${colors.text}`}>
+                                {explanation}
+                            </p>
+                        </div>
                     </div>
 
                     {/* Try Again / Submit buttons */}
@@ -628,7 +631,8 @@ function SummaryResultCard({
             transition={{ duration: 0.5, delay: 0.5 }}
             className="max-w-[700px] mx-auto mt-8 lg:mt-16 mb-8"
         >
-            <div className="bg-white rounded-2xl border border-black/10 overflow-hidden shadow-sm">
+        <div className="bg-white rounded-2xl border border-black/10 overflow-hidden shadow-sm max-h-[85vh] flex flex-col">
+            <div className="flex-grow overflow-y-auto scrollbar-none">
                 {/* Header */}
                 <div className="px-6 py-4 bg-[#fafafa] border-b border-black/5">
                     <div className="flex items-start justify-between gap-4">
@@ -712,6 +716,7 @@ function SummaryResultCard({
                     </div>
                 )}
             </div>
+        </div>
 
             {/* Final Score & Done Button */}
             <div className="mt-8 flex items-center justify-center gap-6">

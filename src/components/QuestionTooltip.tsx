@@ -53,6 +53,31 @@ export default function QuestionTooltip({
         onSubmit(answer);
     };
 
+    const [clampedY, setClampedY] = useState(anchorY);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!mounted || isMobile || !containerRef.current) return;
+
+        const updatePosition = () => {
+            const height = containerRef.current?.offsetHeight || 0;
+            const viewportHeight = window.innerHeight;
+            const padding = 24;
+
+            let targetY = anchorY - height / 2;
+
+            const minY = padding;
+            const maxY = viewportHeight - height - padding;
+            const finalY = Math.max(minY, Math.min(maxY, targetY));
+
+            setClampedY(finalY);
+        };
+
+        updatePosition();
+        window.addEventListener("resize", updatePosition);
+        return () => window.removeEventListener("resize", updatePosition);
+    }, [mounted, isMobile, anchorY]);
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -62,39 +87,46 @@ export default function QuestionTooltip({
 
     const tooltipContent = (
         <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: isMobile ? 0 : "-50%" }}
-            animate={{ opacity: 1, scale: 1, y: isMobile ? 0 : "-50%" }}
-            exit={{ opacity: 0, scale: 0.9, y: isMobile ? 0 : "-50%" }}
+            ref={containerRef}
+            initial={{ opacity: 0, scale: 0.9, y: isMobile ? 10 : 0 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: isMobile ? 10 : 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             className={`fixed z-50 ${isMobile
                 ? "left-1/2 -translate-x-1/2 top-[12vh]"
                 : ""
-                }`}
+                } flex flex-col`}
             style={isMobile ? undefined : {
-                top: anchorY,
+                top: clampedY,
                 ...(side === "right"
                     ? { left: "calc(50% + min(27.5vw, 500px) + 24px)" }
                     : { right: "calc(50% + min(27.5vw, 500px) + 24px)" }
                 )
             }}
         >
-            <div className="relative bg-white rounded-2xl shadow-xl border border-black/10 p-5 md:p-6 w-[calc(100vw-32px)] max-w-[320px]">
+            <div className="relative bg-white rounded-2xl shadow-xl border border-black/10 p-5 md:p-6 w-[calc(100vw-32px)] max-w-[320px] max-h-[75vh] flex flex-col">
+
                 {isMobile && (
                     <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-black/10 rotate-45 border-r border-b" />
                 )}
 
                 {!isMobile && (
                     <div
-                        className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white border-black/10 rotate-45 ${side === "right"
+                        className={`absolute w-3 h-3 bg-white border-black/10 rotate-45 ${side === "right"
                             ? "-left-1.5 border-l border-b"
                             : "-right-1.5 border-r border-t"
                             }`}
+                        style={{ 
+                            top: Math.max(20, Math.min((containerRef.current?.offsetHeight || 0) - 20, anchorY - clampedY))
+                        }}
                     />
                 )}
 
-                <p className="text-[15px] font-medium text-[#1a1a1a] leading-relaxed mb-4">
-                    {question}
-                </p>
+                <div className="overflow-y-auto scrollbar-none flex-grow pr-1">
+                    <p className="text-[15px] font-medium text-[#1a1a1a] leading-relaxed mb-4">
+                        {question}
+                    </p>
+                </div>
 
                 <textarea
                     ref={inputRef}
