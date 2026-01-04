@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import ConfirmationModal from "./ConfirmationModal";
 
 interface ReaderSettingsProps {
     currentSentenceIndex: number;
@@ -20,9 +21,56 @@ export default function ReaderSettings({ currentSentenceIndex, sentences, totalS
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<{ sentenceIndex: number; text: string }[]>([]);
+    const [showRestartModal, setShowRestartModal] = useState(false);
+    const [showReadOnlyModal, setShowReadOnlyModal] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
     const mobileMenuRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Check if user has seen the read-only warning before
+    const hasSeenReadOnlyWarning = () => {
+        if (typeof window === "undefined") return false;
+        return localStorage.getItem("readOnlyWarningShown") === "true";
+    };
+
+    const markReadOnlyWarningSeen = () => {
+        if (typeof window !== "undefined") {
+            localStorage.setItem("readOnlyWarningShown", "true");
+        }
+    };
+
+    // Handle restart action
+    const handleRestartClick = () => {
+        setShowRestartModal(true);
+    };
+
+    const confirmRestart = () => {
+        setShowRestartModal(false);
+        setIsMobileMenuOpen(false);
+        onResetToStart();
+    };
+
+    // Handle read-only toggle
+    const handleReadOnlyClick = () => {
+        if (readOnlyMode) {
+            // Turning OFF read-only - just do it
+            if (currentSentenceIndex > 0) onResetToStart();
+            onReadOnlyChange(false);
+        } else {
+            // Turning ON read-only - check if first time
+            if (hasSeenReadOnlyWarning()) {
+                onReadOnlyChange(true);
+            } else {
+                setShowReadOnlyModal(true);
+            }
+        }
+    };
+
+    const confirmReadOnly = () => {
+        markReadOnlyWarningSeen();
+        setShowReadOnlyModal(false);
+        onReadOnlyChange(true);
+    };
 
     // Close dropdowns when clicking outside
     useEffect(() => {
@@ -70,9 +118,12 @@ export default function ReaderSettings({ currentSentenceIndex, sentences, totalS
         onSearchQueryChange?.(searchQuery);
     }, [searchQuery, onSearchQueryChange]);
 
+    const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
     const highlightMatch = (text: string, query: string) => {
         if (!query.trim()) return text;
-        const parts = text.split(new RegExp(`(${query})`, 'gi'));
+        const escapedQuery = escapeRegex(query);
+        const parts = text.split(new RegExp(`(${escapedQuery})`, 'gi'));
         return parts.map((part, i) => 
             part.toLowerCase() === query.toLowerCase() 
                 ? <mark key={i} className="bg-yellow-200 rounded px-0.5">{part}</mark> 
@@ -98,6 +149,24 @@ export default function ReaderSettings({ currentSentenceIndex, sentences, totalS
 
     return (
         <>
+            {/* Confirmation Modals */}
+            <ConfirmationModal
+                isOpen={showRestartModal}
+                title="Restart Reading?"
+                message="This will reset your progress and take you back to the beginning of the passage. Your answers will be preserved."
+                confirmText="Restart"
+                onConfirm={confirmRestart}
+                onCancel={() => setShowRestartModal(false)}
+            />
+            <ConfirmationModal
+                isOpen={showReadOnlyModal}
+                title="Read Only Mode"
+                message="In Read Only mode, you can read the passage freely without being asked any questions. Your comprehension will not be graded."
+                confirmText="Continue"
+                onConfirm={confirmReadOnly}
+                onCancel={() => setShowReadOnlyModal(false)}
+            />
+
             {/* MOBILE: Single settings button with dropdown */}
             <div ref={mobileMenuRef} className="md:hidden fixed top-8 right-8 z-40">
                 <div
@@ -144,10 +213,7 @@ export default function ReaderSettings({ currentSentenceIndex, sentences, totalS
                                 label="Read Only"
                                 icon={<svg className="w-4 h-4 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>}
                                 isOn={readOnlyMode}
-                                onToggle={() => {
-                                    if (readOnlyMode && currentSentenceIndex > 0) onResetToStart();
-                                    onReadOnlyChange(!readOnlyMode);
-                                }}
+                                onToggle={handleReadOnlyClick}
                             />
                             <Toggle 
                                 label="Full View"
@@ -160,7 +226,7 @@ export default function ReaderSettings({ currentSentenceIndex, sentences, totalS
                         {/* Restart Button */}
                         <div className="p-3 border-t border-black/5">
                             <button
-                                onClick={() => { onResetToStart(); setIsMobileMenuOpen(false); }}
+                                onClick={handleRestartClick}
                                 className="w-full py-2 px-4 text-sm font-medium text-[#666] bg-[#f5f5f5] rounded-lg hover:bg-[#eee] transition-colors cursor-pointer"
                             >
                                 Restart Reading
@@ -218,7 +284,7 @@ export default function ReaderSettings({ currentSentenceIndex, sentences, totalS
 
                 {/* Restart Button */}
                 <div
-                    onClick={onResetToStart}
+                    onClick={handleRestartClick}
                     className="bg-white/80 hover:bg-white backdrop-blur-sm rounded-full px-3 py-2 shadow-sm border border-black/5 flex items-center justify-center transition-all duration-300 cursor-pointer h-10"
                     title="Restart from beginning"
                 >
@@ -232,12 +298,7 @@ export default function ReaderSettings({ currentSentenceIndex, sentences, totalS
             <div className="hidden md:flex fixed bottom-8 right-8 z-40 items-center gap-3">
                 {/* Read Only Mode Toggle */}
                 <div
-                    onClick={() => {
-                        if (readOnlyMode && currentSentenceIndex > 0) {
-                            onResetToStart();
-                        }
-                        onReadOnlyChange(!readOnlyMode);
-                    }}
+                    onClick={handleReadOnlyClick}
                     className="bg-white/80 hover:bg-white backdrop-blur-sm rounded-full px-3 py-2 shadow-sm border border-black/5 flex items-center gap-2 transition-all duration-300 cursor-pointer select-none h-10"
                 >
                     <svg className="w-4 h-4 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
