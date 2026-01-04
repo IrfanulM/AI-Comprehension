@@ -107,8 +107,16 @@ export default function Results({
                 explanation: newExplanation,
             }
         };
-        const newAnswers = { ...updatedAnswers, [questionKey]: newAnswer };
-        const newSummary = questionKey === "summary" ? newAnswer : (updatedAnswers.summary || correctedSummary);
+        
+        // Check if this is a post-reading/summary question
+        const isSummaryQuestion = questions[questionKey]?.summary !== undefined;
+        
+        const newAnswers = { 
+            ...updatedAnswers, 
+            [questionKey]: newAnswer,
+            ...(isSummaryQuestion ? { summary: newAnswer } : {})
+        };
+        const newSummary = isSummaryQuestion ? newAnswer : (updatedAnswers.summary || correctedSummary);
         
         setChecks(newChecks);
         setUpdatedAnswers(newAnswers);
@@ -615,7 +623,7 @@ function SummaryResultCard({
             }
 
             const data = await response.json();
-            onRetryComplete("summary", data.rating, data.explanation, editedSummary);
+            onRetryComplete(questionKey, data.rating, data.explanation, editedSummary);
         } catch (error) {
             console.error("Retry failed:", error);
         } finally {
