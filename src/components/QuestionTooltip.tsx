@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 
@@ -24,7 +24,10 @@ export default function QuestionTooltip({
     const [answer, setAnswer] = useState(initialAnswer);
     const [mounted, setMounted] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [clampedY, setClampedY] = useState(anchorY);
+    const [clampedX, setClampedX] = useState<number | null>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -43,6 +46,47 @@ export default function QuestionTooltip({
         }
     }, [mounted]);
 
+    useLayoutEffect(() => {
+        if (!mounted || isMobile || !containerRef.current) return;
+
+        const updatePosition = () => {
+            const rect = containerRef.current?.getBoundingClientRect();
+            if (!rect) return;
+
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const padding = 20;
+            let targetY = anchorY - rect.height / 2;
+            const minY = padding;
+            const maxY = viewportHeight - rect.height - padding;
+            setClampedY(Math.max(minY, Math.min(maxY, targetY)));
+
+            const passageCenter = viewportWidth / 2;
+            const passageOffset = Math.min(27.5 * (viewportWidth / 100), 500) + 24;
+            
+            let targetX: number;
+            if (side === "right") {
+                targetX = passageCenter + passageOffset;
+                if (targetX + rect.width > viewportWidth - padding) {
+                    targetX = viewportWidth - rect.width - padding;
+                }
+            } else {
+                targetX = passageCenter - passageOffset - rect.width;
+                if (targetX < padding) {
+                    targetX = padding;
+                }
+            }
+            setClampedX(targetX);
+        };
+
+        // Initial measurement
+        updatePosition();
+        
+        // Debounced or direct resize listener
+        window.addEventListener("resize", updatePosition);
+        return () => window.removeEventListener("resize", updatePosition);
+    }, [mounted, isMobile, anchorY, side, question]); // Re-run if question changes (height might change)
+
     const handleAnswerChange = (value: string) => {
         setAnswer(value);
         onDraftChange?.(value);
@@ -52,31 +96,6 @@ export default function QuestionTooltip({
         if (!answer.trim()) return;
         onSubmit(answer);
     };
-
-    const [clampedY, setClampedY] = useState(anchorY);
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (!mounted || isMobile || !containerRef.current) return;
-
-        const updatePosition = () => {
-            const height = containerRef.current?.offsetHeight || 0;
-            const viewportHeight = window.innerHeight;
-            const padding = 24;
-
-            let targetY = anchorY - height / 2;
-
-            const minY = padding;
-            const maxY = viewportHeight - height - padding;
-            const finalY = Math.max(minY, Math.min(maxY, targetY));
-
-            setClampedY(finalY);
-        };
-
-        updatePosition();
-        window.addEventListener("resize", updatePosition);
-        return () => window.removeEventListener("resize", updatePosition);
-    }, [mounted, isMobile, anchorY]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -89,23 +108,20 @@ export default function QuestionTooltip({
         <motion.div
             ref={containerRef}
             initial={{ opacity: 0, scale: 0.9, y: isMobile ? 10 : 0 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
+            animate={{ 
+                opacity: 1, 
+                scale: 1, 
+                y: 0 
+            }}
             exit={{ opacity: 0, scale: 0.9, y: isMobile ? 10 : 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className={`fixed z-50 ${isMobile
-                ? "left-1/2 -translate-x-1/2 top-[12vh]"
-                : ""
-                } flex flex-col`}
+            className={`fixed z-50 ${isMobile ? "left-1/2 -translate-x-1/2 top-[12vh]" : ""} flex flex-col pointer-events-none`}
             style={isMobile ? undefined : {
                 top: clampedY,
-                ...(side === "right"
-                    ? { left: "calc(50% + min(27.5vw, 500px) + 24px)" }
-                    : { right: "calc(50% + min(27.5vw, 500px) + 24px)" }
-                )
+                left: clampedX !== null ? clampedX : undefined
             }}
         >
-            <div className="relative bg-white rounded-2xl shadow-xl border border-black/10 p-5 md:p-6 w-[calc(100vw-32px)] max-w-[320px] max-h-[75vh] flex flex-col">
-
+            <div className="relative bg-white rounded-2xl shadow-xl border border-black/10 p-5 md:p-6 w-[calc(100vw-32px)] md:w-[clamp(260px,22vw,320px)] max-h-[75vh] flex flex-col pointer-events-auto">
                 {isMobile && (
                     <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-black/10 rotate-45 border-r border-b" />
                 )}
@@ -117,6 +133,7 @@ export default function QuestionTooltip({
                             : "-right-1.5 border-r border-t"
                             }`}
                         style={{ 
+                            opacity: clampedX !== null ? 1 : 0,
                             top: Math.max(20, Math.min((containerRef.current?.offsetHeight || 0) - 20, anchorY - clampedY))
                         }}
                     />

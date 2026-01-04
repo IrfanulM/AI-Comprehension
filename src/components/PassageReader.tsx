@@ -119,11 +119,6 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
             if (!readOnlyMode && q.type === "while-reading" && q["sentence-number"] === sentenceNumber && !answeredInSession.has(key)) {
                 const side = questionIndex % 2 === 0 ? "right" : "left";
                 setActiveQuestion({ key, question: q, side });
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        updateTooltipPosition();
-                    });
-                });
                 return true;
             }
             if (q.type === "while-reading") questionIndex++;
@@ -141,30 +136,29 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
     };
 
     const advance = useCallback(() => {
-        if (scrollCooldown.current || activeQuestion) return;
+        if (activeQuestion || scrollCooldown.current) return;
+        
+        const nextIndex = currentIndex + 1;
+        if (nextIndex >= sentences.length) return;
+
         scrollCooldown.current = true;
         setIsAdvancing(true);
         setFadingOutIndex(null);
+
+        const hasQuestion = checkForQuestion(nextIndex);
         
-        const hasQuestion = checkForQuestion(currentIndex);
-        if (hasQuestion) {
-            setTimeout(() => {
-                scrollCooldown.current = false;
-            }, 300);
-            return;
+        if (!hasQuestion) {
+            setCurrentIndex(nextIndex);
         }
-        
-        const nextIndex = Math.min(currentIndex + 1, sentences.length - 1);
-        setCurrentIndex(nextIndex);
+
         setTimeout(() => {
             scrollCooldown.current = false;
-        }, 300);
+        }, 50);
     }, [currentIndex, activeQuestion, checkForQuestion, sentences.length]);
 
     const retreat = useCallback(() => {
-        if (scrollCooldown.current || currentIndex === 0) return;
+        if (currentIndex === 0 || scrollCooldown.current) return;
 
-        // If question is active, dismiss it when scrolling back
         if (activeQuestion) {
             setActiveQuestion(null);
         }
@@ -181,7 +175,7 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
 
         setTimeout(() => {
             scrollCooldown.current = false;
-        }, 300);
+        }, 50);
 
         setTimeout(() => {
             setFadingOutIndex((current) => current === removingIndex ? null : current);
@@ -262,23 +256,22 @@ export default function PassageReader({ passage, questions, initialAnswers, onBa
             if (fullViewMode) return;
             
             const currentDelta = Math.abs(e.deltaY);
-            if (currentDelta < 10) return;
-            
-            lastDeltas.current.push(currentDelta);
-            if (lastDeltas.current.length > 3) lastDeltas.current.shift();
+            if (currentDelta < 5) return;
             
             const now = Date.now();
             const timeSinceLast = now - lastScrollTime.current;
 
-            if (timeSinceLast < 300) {
-                e.preventDefault();
-                return;
-            }
-
-            const isAccelerating = lastDeltas.current.length >= 2 && 
-                                  lastDeltas.current[lastDeltas.current.length - 1] > lastDeltas.current[lastDeltas.current.length - 2];
+            // Trackpad momentum protection
+            lastDeltas.current.push(currentDelta);
+            if (lastDeltas.current.length > 3) lastDeltas.current.shift();
             
-            if (!isAccelerating && timeSinceLast < 1000) return;
+            const isSlowingDown = lastDeltas.current.length >= 2 && 
+                                 lastDeltas.current[lastDeltas.current.length - 1] < lastDeltas.current[lastDeltas.current.length - 2];
+
+            if (isSlowingDown && timeSinceLast < 500) return;
+
+            // Mouse wheel
+            if (timeSinceLast < 50) return;
 
             e.preventDefault();
             if (e.deltaY > 0) {
