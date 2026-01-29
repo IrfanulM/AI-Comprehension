@@ -4,8 +4,6 @@ A feature prototype developed responding to a product brief from a local EdTech 
 
 ## Getting Started
 
-Live Demo can be found here: https://ai-comprehension.vercel.app/
-
 To run locally, clone the repository and create a .env file in the root directory with the following variable:
 
 ```
